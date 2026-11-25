@@ -11,9 +11,15 @@ public record AdsAadressParing(
     public static final String NS = "http://ads.x-road.eu";
 
     public record Request(
-            @JacksonXmlProperty(localName = "aadress", namespace = NS) String aadress) {}
+            @JacksonXmlProperty(localName = "aadress", namespace = NS) String aadress,
+            @JacksonXmlProperty(localName = "x", namespace = NS) Long x,
+            @JacksonXmlProperty(localName = "y", namespace = NS) Long y) {}
 
     public static AdsAadressParing of(String aadress) {
-        return new AdsAadressParing(new Request(aadress));
+        return new AdsAadressParing(new Request(aadress, null, null));
+    }
+
+    public static AdsAadressParing ofPoint(long x, long y) {
+        return new AdsAadressParing(new Request(null, x, y));
     }
 }

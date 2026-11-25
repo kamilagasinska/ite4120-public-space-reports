@@ -1,5 +1,6 @@
 package ee.taltech.ite4120.reports.api;
 
+import ee.taltech.ite4120.reports.addressregister.AddressInfo;
 import ee.taltech.ite4120.reports.dto.ReportQueryParams;
 import ee.taltech.ite4120.reports.model.Category;
 import ee.taltech.ite4120.reports.model.Report;
@@ -8,7 +9,10 @@ import ee.taltech.ite4120.reports.service.ReportService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import io.swagger.v3.oas.annotations.Parameter;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+import java.math.BigDecimal;
 import java.net.URI;
 import java.util.List;
 import org.helex.commons.model.QueryResult;
@@ -18,7 +22,9 @@ import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 /** The public space reports API. HTTP only, the rules are in ReportService. */
@@ -55,9 +61,13 @@ public class ReportController {
     @ApiResponse(responseCode = "201", description = "Created, the Location header points at the report")
     @ApiResponse(responseCode = "200", description = "This submissionKey was used before, the existing report")
     @ApiResponse(responseCode = "400", description = "Validation failed")
+    @ApiResponse(responseCode = "429", description = "Over the limit, see Retry-After")
     @PostMapping
-    public ResponseEntity<Report> submit(@Valid @RequestBody ReportRequest body) {
-        ReportService.Submission result = service.submit(body.toModel());
+    public ResponseEntity<Report> submit(@Valid @RequestBody ReportRequest body,
+            @Parameter(description = "Random UUID of the device, absent for a guest")
+            @RequestHeader(name = "X-Device-Id", required = false) String deviceId, HttpServletRequest request) {
+        /* The address of the connection. X-Forwarded-For can be written by anyone, so it is not used. */
+        ReportService.Submission result = service.submit(body.toModel(), deviceId, request.getRemoteAddr());
         Report report = result.report();
         return result.created()
                 ? ResponseEntity.created(URI.create("/api/reports/" + report.getReferenceNumber())).body(report)
@@ -72,7 +82,7 @@ public class ReportController {
     @ApiResponse(responseCode = "409", description = "This status change is not allowed")
     @PostMapping("/{referenceNumber}/status")
     public Report changeStatus(@PathVariable String referenceNumber, @Valid @RequestBody StatusChangeRequest body) {
-        return service.changeStatus(referenceNumber, body.getToStatus(), body.getReason());
+        return service.changeStatus(referenceNumber, body.getToStatus(), body.getReason(), body.isFalseReport());
     }
 
     @Operation(summary = "Status changes of a report, oldest first (coordinator)")
@@ -82,6 +92,15 @@ public class ReportController {
     @GetMapping("/{referenceNumber}/history")
     public List<StatusChange> history(@PathVariable String referenceNumber) {
         return service.history(referenceNumber);
+    }
+
+    @Operation(summary = "Municipality and nearest address of a map point")
+    @ApiResponse(responseCode = "200", description = "The place")
+    @ApiResponse(responseCode = "404", description = "No municipality at this point")
+    @ApiResponse(responseCode = "502", description = "The address register is not available")
+    @GetMapping("/place")
+    public AddressInfo place(@RequestParam BigDecimal latitude, @RequestParam BigDecimal longitude) {
+        return service.place(latitude, longitude);
     }
 
     @Operation(summary = "Category reference list with responsible units")

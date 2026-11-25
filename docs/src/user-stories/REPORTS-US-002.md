@@ -22,3 +22,5 @@ Out of scope: assigning work to individual crews, scheduling, cost tracking, and
 - Rejecting a report requires a reason; a rejection without a reason is refused.
 - Any other status change (for example Resolved back to Received) is refused.
 - Every status change is recorded with the time and the user who made it.
+- The coordinator sees the municipality of each report and whether it came from a guest, a device or a signed resident.
+- The coordinator can mark a rejected report as false, which resets the trust of its sender.

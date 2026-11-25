@@ -10,5 +10,9 @@ animals:
 
 reports:
   coordinators: coordinator
+  hash-secret: local-development-only
   address-register:
+    # The public address service of Estonia. For the imitated register or for showing
+    # a failure set REPORTS_ADDRESS_URL to http://localhost:18440/mock-registry/ads
+    url: ${REPORTS_ADDRESS_URL:https://inaadress.maaamet.ee/inaadress}
     mock-server: true      # this app serves /mock-registry/ads itself

@@ -9,6 +9,17 @@ import java.time.OffsetDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Report {
 
+    private String municipalityCode;
+    private String municipalityName;
+    private String channel;
+    /** Read from the last rejection, shown to the resident too. */
+    private String rejectionReason;
+    @JsonIgnore
+    private Long reporterId;
+    @JsonIgnore
+    private String ipHash;
+    @JsonIgnore
+    private String signedDigest;
     /** Internal key, replaced by the reference number in the API. */
     @JsonIgnore
     private Long id;
@@ -91,4 +102,18 @@ public class Report {
     public void setSysModifiedBy(String sysModifiedBy) { this.sysModifiedBy = sysModifiedBy; }
     public Long getSysVersion() { return sysVersion; }
     public void setSysVersion(Long sysVersion) { this.sysVersion = sysVersion; }
+    public String getMunicipalityCode() { return municipalityCode; }
+    public void setMunicipalityCode(String municipalityCode) { this.municipalityCode = municipalityCode; }
+    public String getMunicipalityName() { return municipalityName; }
+    public void setMunicipalityName(String municipalityName) { this.municipalityName = municipalityName; }
+    public String getChannel() { return channel; }
+    public void setChannel(String channel) { this.channel = channel; }
+    public String getRejectionReason() { return rejectionReason; }
+    public void setRejectionReason(String rejectionReason) { this.rejectionReason = rejectionReason; }
+    public Long getReporterId() { return reporterId; }
+    public void setReporterId(Long reporterId) { this.reporterId = reporterId; }
+    public String getIpHash() { return ipHash; }
+    public void setIpHash(String ipHash) { this.ipHash = ipHash; }
+    public String getSignedDigest() { return signedDigest; }
+    public void setSignedDigest(String signedDigest) { this.signedDigest = signedDigest; }
 }
