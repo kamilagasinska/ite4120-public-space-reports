@@ -73,6 +73,8 @@ class ReportBusinessRulesIT {
     void registerKnowsTheAddress() {
         registerStatus = 200;
         registerBody = FOUND;
+        /* Every test sends from one IP address, whose own limit belongs to ReportIdentityRulesIT. */
+        jdbc.update("update reports.report set ip_hash = null");
     }
 
     @AfterAll
@@ -306,6 +308,7 @@ class ReportBusinessRulesIT {
 
     private Answer post(String user, String path, String body) {
         return send(user, request(path).header("Content-Type", "application/json")
+                .header("X-Device-Id", UUID.randomUUID().toString())
                 .POST(HttpRequest.BodyPublishers.ofString(body)));
     }
 
