@@ -110,7 +110,7 @@ class FakeSmartId {
         Path file = Files.createTempDirectory("fake-smart-id").resolve("k.p12");
         Process p = new ProcessBuilder(Path.of(System.getProperty("java.home"), "bin", "keytool").toString(),
                 "-genkeypair", "-alias", "k", "-keyalg", "RSA", "-keysize", "2048", "-validity", "30",
-                "-dname", "SERIALNUMBER=" + person + ", CN=" + ISSUER + ", C=EE",
+                "-dname", "SERIALNUMBER=" + person + ", GIVENNAME=MARI, SURNAME=MAASIKAS, CN=" + ISSUER + ", C=EE",
                 "-keystore", file.toString(), "-storetype", "PKCS12", "-storepass", "changeit")
                 .redirectErrorStream(true).start();
         String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
