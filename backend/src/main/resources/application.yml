@@ -60,7 +60,7 @@ reports:
     url: https://sid.demo.sk.ee/smart-id-rp/v3
     trusted-issuer: TEST of SK ID Solutions EID-Q 2024E
   address-register:
-    # http (default) or xroad, as for the owner registry above.
+    # http (default) or xroad, the X-Road message protocol for REST.
     mode: http
     url: ${REPORTS_ADDRESS_URL:http://localhost:18440/mock-registry/ads}
     mock-server: false

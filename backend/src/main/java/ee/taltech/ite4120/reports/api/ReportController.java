@@ -1,11 +1,13 @@
 package ee.taltech.ite4120.reports.api;
 
-import ee.taltech.ite4120.reports.addressregister.AddressInfo;
 import ee.taltech.ite4120.reports.dto.ReportQueryParams;
 import ee.taltech.ite4120.reports.model.Category;
+import ee.taltech.ite4120.reports.model.Forwarding;
+import ee.taltech.ite4120.reports.model.Place;
 import ee.taltech.ite4120.reports.model.Report;
 import ee.taltech.ite4120.reports.model.StatusChange;
 import ee.taltech.ite4120.reports.service.ReportService;
+import ee.taltech.ite4120.reports.xroad.XRoadCheck;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -34,8 +36,10 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReportController {
 
     private final ReportService service;
+    private final XRoadCheck xroadCheck;
 
-    public ReportController(ReportService service) {
+    public ReportController(ReportService service, XRoadCheck xroadCheck) {
+        this.xroadCheck = xroadCheck;
         this.service = service;
     }
 
@@ -94,13 +98,36 @@ public class ReportController {
         return service.history(referenceNumber);
     }
 
-    @Operation(summary = "Municipality and nearest address of a map point")
+    @Operation(summary = "Forward a report to another recipient (coordinator)")
+    @ApiResponse(responseCode = "200", description = "The forwarded report")
+    @ApiResponse(responseCode = "400", description = "Unknown kind, or name or reason missing")
+    @ApiResponse(responseCode = "403", description = "Not a coordinator")
+    @ApiResponse(responseCode = "409", description = "Closed, or already with this recipient")
+    @PostMapping("/{referenceNumber}/forward")
+    public Report forward(@PathVariable String referenceNumber, @Valid @RequestBody ForwardRequest body) {
+        return service.forward(referenceNumber, body.getKind(), body.getName(), body.getReason());
+    }
+
+    @Operation(summary = "Where a report was forwarded, oldest first")
+    @GetMapping("/{referenceNumber}/forwardings")
+    public List<Forwarding> forwardings(@PathVariable String referenceNumber) {
+        return service.forwardings(referenceNumber);
+    }
+
+    @Operation(summary = "Live call to the X-Road test environment (coordinator)")
+    @GetMapping("/xroad-status")
+    public XRoadCheck.Status xroadStatus() {
+        return xroadCheck.check();
+    }
+
+    @Operation(summary = "Municipality, nearest address and recipient of a map point")
     @ApiResponse(responseCode = "200", description = "The place")
     @ApiResponse(responseCode = "404", description = "No municipality at this point")
     @ApiResponse(responseCode = "502", description = "The address register is not available")
     @GetMapping("/place")
-    public AddressInfo place(@RequestParam BigDecimal latitude, @RequestParam BigDecimal longitude) {
-        return service.place(latitude, longitude);
+    public Place place(@RequestParam BigDecimal latitude, @RequestParam BigDecimal longitude,
+            @RequestParam(required = false) String categoryCode) {
+        return service.place(latitude, longitude, categoryCode);
     }
 
     @Operation(summary = "Category reference list with responsible units")

@@ -10,9 +10,11 @@ animals:
 
 reports:
   coordinators: coordinator
+  road-map:
+    url: https://gsavalik.envir.ee/geoserver/etak/wfs
   hash-secret: local-development-only
   address-register:
-    # The public address service of Estonia. For the imitated register or for showing
-    # a failure set REPORTS_ADDRESS_URL to http://localhost:18440/mock-registry/ads
-    url: ${REPORTS_ADDRESS_URL:https://inaadress.maaamet.ee/inaadress}
+    # X-Road through the imitated security server of this app, which passes the question
+    # to the public address service. An address with "register-down" shows a failure.
+    mode: xroad
     mock-server: true      # this app serves /mock-registry/ads itself

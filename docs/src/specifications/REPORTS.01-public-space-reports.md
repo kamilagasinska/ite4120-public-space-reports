@@ -1,6 +1,6 @@
 # REPORTS.01 · Public space reports
 
-> **REPORTS.01** · state **Agreed** (revision 2, identity, limits and geolocation) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
+> **REPORTS.01** · state **Agreed** (revision 3, recipient and X-Road) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
 > and [REPORTS-US-002](../user-stories/REPORTS-US-002.md)
 
 ## Description
@@ -93,6 +93,23 @@ test persons. Nobody types a real personal code or PIN into this application.
 refuses, nothing is stored as signed. The form keeps its content and offers to send as
 device or guest instead.
 
+## Recipient
+
+| Category and place | Recipient |
+| --- | --- |
+| Road damage, nearest road within 30 m is a main, basic or side highway | Transport Administration |
+| Road damage, nearest road is a street, or no road within 30 m | the municipality of the point, unit of the category |
+| Road damage, nearest road is another road, or the road map is down | coordinator decides |
+| Litter | the municipality, unit of the category |
+| No municipality known | coordinator decides |
+
+The road type comes from the public road layer of the topographic database ETAK. It has
+no owner field, so this is our rule and the recipient is a proposal. The unit is a
+general name, because no open list of municipal departments was found. The resident sees
+the recipient before sending and afterwards. If the recipient says the report is not
+theirs, the coordinator forwards it with a reason, and the resident sees where it went
+and why. In this course nothing is delivered to a real authority.
+
 ## Data model
 
 | Table | Field | Type | Rules |
@@ -112,6 +129,8 @@ device or guest instead.
 | | `reporter_contact` | text | optional, ≤255; email or phone, only for follow-up |
 | | `municipality_code` | text | optional, ≤10; the register's code of the municipality |
 | | `municipality_name` | text | optional, ≤100; empty means not determined |
+| | `recipient_kind` | text | required; STATE_ROADS, MUNICIPALITY, OTHER or UNDETERMINED |
+| | `recipient_name` | text | required, ≤220 |
 | | `channel` | text | required; GUEST, DEVICE or SIGNED |
 | | `reporter_id` | bigint | FK → reporter; empty for a guest |
 | | `ip_hash` | text | optional; cleared after 24 hours |
@@ -130,6 +149,11 @@ device or guest instead.
 | | `kind` | text | required; DEVICE or SIGNED |
 | | `key_hash` | text | required, **unique among active rows** per kind |
 | | `last_report_at` | timestamptz | required |
+| | `sys_*` | platform | trigger-managed |
+| `reports.forwarding` | `id` PK | bigint | from `core.seq_id` |
+| | `report_id` | bigint | required, FK → report |
+| | `from_name`, `to_kind`, `to_name` | text | required; kind is STATE_ROADS, MUNICIPALITY or OTHER |
+| | `reason` | text | required, ≤500 |
 | | `sys_*` | platform | trigger-managed |
 | `reports.signing` | `id` PK | bigint | from `core.seq_id` |
 | | `token` | text | required, unique; random, used by the form to ask for the result |
@@ -164,7 +188,10 @@ The database repeats the service validation with CHECK constraints on
 | `POST /api/reports` | submit; answers **201 + Location** with the reference number; the same `submissionKey` again answers 200 with the existing report; the header `X-Device-Id` makes it a device report, without it a guest report | 400 validation · 429 limit |
 | `POST /api/reports/signings` | start signing a report with a demo test person; answers 201 with a token and the verification code | 400 · 429 limit · 502 Smart-ID unreachable |
 | `GET /api/reports/signings/{token}` | state of the signing, with the reference number when signed | 404 |
-| `GET /api/reports/place` | municipality and address of a map point (`latitude`, `longitude`) | 400 · 502 |
+| `GET /api/reports/place` | municipality and address of a map point (`latitude`, `longitude`), with `categoryCode` also the recipient | 400 · 404 · 502 |
+| `POST /api/reports/{referenceNumber}/forward` | coordinator; send to another recipient (`kind`, `name`, `reason`) | 400 · 403 · 404 · 409 closed or already there |
+| `GET /api/reports/{referenceNumber}/forwardings` | where it was forwarded, oldest first; user name only for a coordinator | 404 |
+| `GET /api/reports/xroad-status` | coordinator; live call to the X-Road test environment, a failure is shown as not available | 403 |
 | `POST /api/reports/{referenceNumber}/status` | coordinator; change status (`toStatus`, `reason`, `falseReport`) | 400 missing reason · 403 · 404 · 409 change not allowed |
 | `GET /api/reports/{referenceNumber}/history` | coordinator; status changes, oldest first | 403 · 404 |
 | `GET /api/reports/categories` | reference list with responsible units | none |
@@ -185,8 +212,12 @@ down, and the coordinator can check the address by hand.
 The address is **verified** when the register returns exactly one address for it.
 Several matches are ambiguous and leave the report unverified. The lookup waits at
 most 3 seconds. The transport is configuration (`reports.address-register.mode`,
-`http` or `xroad`). Locally the application imitates the register, and an address
-containing "register-down" makes the imitation answer 503 to show the policy live.
+`http` or `xroad`). Locally the mode is `xroad`. The application speaks the X-Road message
+protocol for REST to an imitated security server, which passes the question to the public
+address service of Estonia. An address containing "register-down" makes it answer with a
+fault, to show the policy live. The identifiers are those of the real register
+(70003098/aks-ads). The answer has the shape of the public address service, because the
+service description is readable only inside X-Road.
 
 The list without `sort` shows the longest waiting report first. Sort keys are
 `referenceNumber`, `categoryCode`, `address`, `status`, `submittedAt` and `daysOpen`.
@@ -264,6 +295,20 @@ The list without `sort` shows the longest waiting report first. Sort keys are
     register is down, the report is accepted without a municipality.
 20. **A resident sees why a report was rejected.** Given a rejected report, when a
     resident looks it up, then the reason is shown and the user name is not.
+21. **Road damage on a state road goes to the state.** Given the nearest road is a highway,
+    when road damage is reported, then the recipient is the Transport Administration. On a
+    street it is the municipality, on another road the coordinator decides. Litter beside a
+    highway goes to the municipality.
+22. **The road map being down does not block a report.** Given an unreachable map, when
+    road damage is reported, then it is accepted and the coordinator decides.
+23. **A resident sees the recipient before sending.** Given a point and a category, when
+    the place is asked, then the recipient is returned.
+24. **A report that is not for its recipient is forwarded.** Given a report, when a
+    coordinator forwards it with a reason, then the resident sees the new recipient and the
+    reason, not the user name. Without a reason it is 400, a closed report 409, a resident 403.
+25. **X-Road is used and its failure is handled.** Given the xroad mode, when a report is
+    submitted, then the register is asked with the X-Road client and service identifiers. A
+    fault leaves the address unverified. The coordinator sees whether the test environment answers.
 
 ## Decisions
 
