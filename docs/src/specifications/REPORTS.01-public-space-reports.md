@@ -1,6 +1,6 @@
 # REPORTS.01 · Public space reports
 
-> **REPORTS.01** · state **Agreed** · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
+> **REPORTS.01** · state **Proposed** (revision 2, identity, limits and geolocation) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
 > and [REPORTS-US-002](../user-stories/REPORTS-US-002.md)
 
 ## Description
@@ -17,7 +17,12 @@ recorded with who made it and when.
 The address is checked live against the address register through the
 address-register adapter (mock in this course, X-Road-shaped in production).
 Reporting does not require a name. Contact details are optional and used only to
-follow up on that report. No personal identification code is collected.
+follow up on that report. A resident chooses how to report, as a guest, with a device
+identifier or signed with Smart-ID. The section Identity and limits defines the three
+ways. No personal identification code is stored.
+
+The municipality is found from the map point or the address, anywhere in Estonia, and
+the report goes to the unit responsible for the category in that municipality.
 
 The scope is grounded in public procurement practice. The Šiauliai district
 municipality (Lithuania) tender for a littering-report app asks for a map point
@@ -31,7 +36,8 @@ Excluded are photos, video and audio (in TEHIK's rules files belong in object
 storage, beyond this course), a public map of reports, nearby waste collection
 points, notifications by email or SMS, assigning work to individual crews,
 duplicate detection, statistics dashboards, problem types other than road damage
-and litter, more than one municipality, and real authentication (mock auth only).
+and litter, a production Smart-ID contract (the demo environment only), and real
+sign-in of coordinators (mock auth only).
 
 ## Roles
 
@@ -42,6 +48,48 @@ and litter, more than one municipality, and real authentication (mock auth only)
 
 A resident calling a coordinator endpoint gets 403. The status lookup by reference
 number never returns the contact to a resident.
+
+## Identity and limits
+
+| Way | What is stored about the reporter | Limit at the start |
+| --- | --- | --- |
+| Guest | a keyed hash of the IP address | 1 report a day from one IP address |
+| Device | a keyed hash of a random identifier kept in the browser | trust level 0 |
+| Signed | a keyed hash of the Smart-ID person | trust level 0 of the signed scale |
+
+| Trust level | Reached with | Device limit | Signed limit |
+| --- | --- | --- | --- |
+| 0 | start | 1 in 10 minutes, 5 a day | 1 a minute, 50 a day |
+| 1 | 3 resolved reports | 1 in 5 minutes, 10 a day | 1 a minute, 100 a day |
+| 2 | 10 resolved reports | 1 in 2 minutes, 20 a day | 1 a minute, 200 a day |
+
+The level is calculated from the reporter's resolved reports. A normal rejection does
+not change it. When a coordinator marks a rejected report as false, the count starts
+again from zero at that moment. Guest and device reports together are also limited to
+20 a day from one IP address, so clearing the browser does not remove every limit.
+A day is the last 24 hours. A refused report answers 429 with Retry-After and tells the
+resident to wait or to sign. The limit is checked and the report stored under one
+database lock per reporter and IP address, so parallel requests cannot pass it.
+
+The first screen explains in plain words what is stored and why. A resident who does
+not want the device identifier reports as a guest or signs. Nobody is forced to agree.
+The device identifier is not a phone number or a hardware number, which a browser does
+not reveal. It is pseudonymous personal data. Device records are deleted after 6 months
+without a report. Signed records are kept while the resident uses the service, because
+they hold the trust history, and are deleted on request. IP hashes are cleared after
+24 hours. The reports themselves stay.
+
+**Smart-ID.** The resident signs the text of the report. The application sends the
+SHA-512 digest to the Smart-ID demo environment, shows the verification code, and
+stores the report only when the signature is complete and verified with the public key
+of the returned certificate, and the certificate was issued by the demo authority.
+The certificate holds a personal code, so it is discarded after the check and only
+the digest, the time and the keyed hash are kept. The demo offers a fixed list of
+test persons. Nobody types a real personal code or PIN into this application.
+
+**Failure policy** for Smart-ID is **fail closed**. If it is unreachable or the person
+refuses, nothing is stored as signed. The form keeps its content and offers to send as
+device or guest instead.
 
 ## Data model
 
@@ -60,6 +108,12 @@ number never returns the contact to a resident.
 | | `longitude` | numeric(9,6) | optional, -180 to 180, together with latitude or not at all |
 | | `description` | text | required, 10 to 1000 characters |
 | | `reporter_contact` | text | optional, ≤255; email or phone, only for follow-up |
+| | `municipality_code` | text | optional, ≤10; the register's code of the municipality |
+| | `municipality_name` | text | optional, ≤100; empty means not determined |
+| | `channel` | text | required; GUEST, DEVICE or SIGNED |
+| | `reporter_id` | bigint | FK → reporter; empty for a guest |
+| | `ip_hash` | text | optional; cleared after 24 hours |
+| | `signed_digest` | text | required when the channel is SIGNED |
 | | `status` | text | required, default RECEIVED; one of RECEIVED, IN_PROGRESS, RESOLVED, REJECTED |
 | | `submission_key` | text | optional, ≤64, unique among active rows; sent by the form so a repeated submit cannot create a duplicate |
 | | `sys_*` | platform | trigger-managed; `sys_created_at` and `sys_created_by` are the submission time and user |
@@ -67,8 +121,21 @@ number never returns the contact to a resident.
 | | `report_id` | bigint | required, FK → report |
 | | `from_status` | text | required |
 | | `to_status` | text | required |
-| | `reason` | text | ≤500; required and non-blank when `to_status` is REJECTED |
+| | `reason` | text | ≤500; required and non-blank when `to_status` is REJECTED; shown to the resident |
+| | `false_report` | boolean | required, default false; only with REJECTED |
 | | `sys_*` | platform | `sys_created_at` and `sys_created_by` record when and by whom the status changed |
+| `reports.reporter` | `id` PK | bigint | from `core.seq_id` |
+| | `kind` | text | required; DEVICE or SIGNED |
+| | `key_hash` | text | required, **unique among active rows** per kind |
+| | `last_report_at` | timestamptz | required |
+| | `sys_*` | platform | trigger-managed |
+| `reports.signing` | `id` PK | bigint | from `core.seq_id` |
+| | `token` | text | required, unique; random, used by the form to ask for the result |
+| | `session_id` | text | required; the Smart-ID session |
+| | `payload` | jsonb | required until finished; the report being signed, then cleared |
+| | `state` | text | required; PENDING, SIGNED, REFUSED, EXPIRED, FAILED |
+| | `report_id` | bigint | FK → report; set when SIGNED |
+| | `sys_*` | platform | trigger-managed |
 
 Allowed status changes are RECEIVED → IN_PROGRESS, IN_PROGRESS → RESOLVED and
 RECEIVED → REJECTED. Any other change is refused.
@@ -90,15 +157,19 @@ The database repeats the service validation with CHECK constraints on
 
 | Method + path | Does | Failure answers |
 | --- | --- | --- |
-| `GET /api/reports` | coordinator; paged list (`categoryCode`, `status`, `limit`, `offset`, `sort`), each row with days open and responsible unit. **This is the reporting operation.** | 400 unknown category, status or sort · 403 |
+| `GET /api/reports` | coordinator; paged list (`categoryCode`, `status`, `municipalityCode`, `channel`, `limit`, `offset`, `sort`), each row with days open and responsible unit. **This is the reporting operation.** | 400 unknown category, status or sort · 403 |
 | `GET /api/reports/{referenceNumber}` | one report with status, category, responsible unit, address, verification, map point and submission time; description, contact and `sys*` metadata only for a coordinator | 404 |
-| `POST /api/reports` | submit; answers **201 + Location** with the reference number; the same `submissionKey` again answers 200 with the existing report | 400 validation |
-| `POST /api/reports/{referenceNumber}/status` | coordinator; change status (`toStatus`, `reason`) | 400 missing reason · 403 · 404 · 409 change not allowed |
+| `POST /api/reports` | submit; answers **201 + Location** with the reference number; the same `submissionKey` again answers 200 with the existing report; the header `X-Device-Id` makes it a device report, without it a guest report | 400 validation · 429 limit |
+| `POST /api/reports/signings` | start signing a report with a demo test person; answers 201 with a token and the verification code | 400 · 429 limit · 502 Smart-ID unreachable |
+| `GET /api/reports/signings/{token}` | state of the signing, with the reference number when signed | 404 |
+| `GET /api/reports/place` | municipality and address of a map point (`latitude`, `longitude`) | 400 · 502 |
+| `POST /api/reports/{referenceNumber}/status` | coordinator; change status (`toStatus`, `reason`, `falseReport`) | 400 missing reason · 403 · 404 · 409 change not allowed |
 | `GET /api/reports/{referenceNumber}/history` | coordinator; status changes, oldest first | 403 · 404 |
 | `GET /api/reports/categories` | reference list with responsible units | none |
 
 Every error is `application/problem+json` via `ApiErrorHandler`. All endpoints
-require `Authorization: Bearer <user>` (mock auth) and answer 401 without it. The
+require `Authorization: Bearer <user>` (mock auth) and answer 401 without it. In mock auth
+a resident is any user name, so it says nothing about who reports. The
 API contract is live at `/swagger-ui.html`. Field names follow Open311 GeoReport
 (category, address, latitude, longitude, description, status).
 
@@ -122,9 +193,11 @@ The list without `sort` shows the longest waiting report first. Sort keys are
 
 | Screen | Element | Component | Rules |
 | --- | --- | --- | --- |
+| Start `/reports/start` | explanation and choice | `AppCard` + `Radio.Group` + `AppButtonPrimary` | what is stored and why; guest, device or Smart-ID, with the limit of each |
+| Smart-ID step | verification code | `AppCard` + `Select` of test persons | labelled as demo; shows the code, waiting, refused and unreachable states |
 | Report form `/reports/new` | category | `Select` | required, options from `/categories` |
 | | address | `Input` | required, ≤255 |
-| | map point | `InputNumber` × 2 | optional, both or neither, range checked |
+| | place | `Button` "Use my location" + `InputNumber` × 2 | the browser asks for permission; fills the point, address and municipality; every value can be corrected, because the problem may be elsewhere; without permission the address is typed |
 | | description | `Input.TextArea` | required, 10-1000, character counter |
 | | contact | `Input` | optional, ≤255, hint "only used to follow up on this report" |
 | | submit | `AppButtonPrimary` | disabled while sending; generates `submissionKey` once per form; on success shows the reference number; 400 problem text shown in a notification |
@@ -171,6 +244,24 @@ The list without `sort` shows the longest waiting report first. Sort keys are
     the list is filtered by LITTER, then only the LITTER report is returned.
 13. **Only a coordinator can change a status.** Given a resident, when they change the
     status of a report, then the answer is 403 and the status is unchanged.
+14. **A guest may send one report a day.** Given a guest report from an IP address, when
+    a second one comes from the same address within 24 hours, then the answer is 429
+    with Retry-After and nothing is stored.
+15. **A device is limited by its trust level.** Given a new device with one report, when
+    it sends another within 10 minutes, then the answer is 429. After 3 resolved reports
+    the limit is 1 in 5 minutes.
+16. **A false report resets trust.** Given a device at level 1, when a coordinator rejects
+    one of its reports as false, then it is at level 0. A normal rejection changes nothing.
+17. **Changing the device does not remove every limit.** Given 20 unsigned reports from
+    one IP address within 24 hours, when a new device sends one more, then the answer is 429.
+18. **A signed report is stored only after a verified signature.** Given a signing that
+    the person refused, or whose signature does not match the report, when its state is
+    read, then no report exists. A verified one creates a SIGNED report.
+19. **The municipality comes from the place.** Given a map point in Saue vald, when the
+    report is submitted, then it shows Saue vald and the responsible unit. When the
+    register is down, the report is accepted without a municipality.
+20. **A resident sees why a report was rejected.** Given a rejected report, when a
+    resident looks it up, then the reason is shown and the user name is not.
 
 ## Decisions
 
@@ -183,3 +274,8 @@ The list without `sort` shows the longest waiting report first. Sort keys are
 4. Mock auth requires a signed-in user, so `sys_created_by` stores the mock user name
    even though reporting needs no name. This is a course limitation, and the user
    name is never shown to residents.
+5. Smart-ID is used in its public demo environment. It was called on 25.11.2026, three
+   test persons signed and the signatures verified.
+6. All municipalities of Estonia are open, as the public address service finds the
+   municipality for any point.
+7. A resident who refuses the device identifier may still report as a guest, once a day.
