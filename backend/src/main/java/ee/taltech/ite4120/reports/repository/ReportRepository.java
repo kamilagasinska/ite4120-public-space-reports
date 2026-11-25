@@ -32,6 +32,7 @@ public class ReportRepository extends BaseRepository {
             + "and s.sys_status = 'A' order by s.id desc limit 1) as rejection_reason, "
             + "(select count(*)::int from reports.message m where m.report_id = r.id and m.kind = 'REMINDER' "
             + "and m.sys_status = 'A') as reminders, "
+            + "(select 1 + count(*)::int from reports.sighting g where g.report_id = r.id and g.sys_status = 'A') as seen_by, "
             + "case when not " + ANSWERED + " then (r.sys_created_at + interval '15 days')::date end as respond_by, "
             + "case when not " + ANSWERED + " then 15 - " + DAYS_OPEN + " end as days_to_respond "
             + "from reports.report r join reports.category c on c.code = r.category_code ";

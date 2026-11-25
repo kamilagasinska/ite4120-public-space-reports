@@ -74,6 +74,7 @@ class ReportIdentityRulesIT {
         registerStatus = 200;
         SMART_ID.behaviour = FakeSmartId.Behaviour.OK;
         jdbc.update("delete from reports.signing");
+        jdbc.update("delete from reports.sighting");
         jdbc.update("delete from reports.status_change");
         jdbc.update("delete from reports.report");
         jdbc.update("delete from reports.reporter");
@@ -189,13 +190,16 @@ class ReportIdentityRulesIT {
         assertThat(done.text("state")).isEqualTo("SIGNED");
         assertThat(get("resident", path).text("referenceNumber")).isEqualTo(done.text("referenceNumber"));
         assertThat(count()).as("asking twice creates one report").isEqualTo(1);
+        assertThat(done.text("name")).as("the name is told to the signing device only").isEqualTo("MARI MAASIKAS");
+        assertThat(get("resident", path).body.has("name")).as("and it is not stored").isFalse();
+        assertThat(get("resident", path).body.path("standing").path("points").asInt(-1)).isZero();
 
         Answer stored = get(COORDINATOR, "/api/reports/" + done.text("referenceNumber"));
         assertThat(stored.text("channel")).isEqualTo("SIGNED");
         String everything = jdbc.queryForList("select r::text from reports.report r").toString()
                 + jdbc.queryForList("select r::text from reports.reporter r").toString()
                 + jdbc.queryForList("select s::text from reports.signing s").toString();
-        assertThat(everything).as("no personal code is stored").doesNotContain("40504040001");
+        assertThat(everything).as("no personal code is stored").doesNotContain("40504040001", "MAASIKAS");
         assertThat(jdbc.queryForObject("select count(*) from reports.signing where state = 'SIGNED' and payload is not null",
                 Integer.class)).isZero();
 

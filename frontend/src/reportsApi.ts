@@ -27,6 +27,7 @@ export interface Report {
   description?: string;
   reporterContact?: string;
   reminders?: number;
+  seenBy?: number;
   sysCreatedAt?: string;
   sysCreatedBy?: string;
   sysModifiedAt?: string;
@@ -41,9 +42,9 @@ export interface Message { kind: 'UPDATE' | 'REMINDER' | 'REMAINS'; text?: strin
 export interface PhotoInfo { id: number; kind: 'BEFORE' | 'AFTER' }
 export interface Place { fullAddress: string; municipalityCode?: string; municipalityName?: string; recipientKind?: string; recipientName?: string }
 export interface Standing { points: number; level: number; nextLevelAt?: number }
-export interface MapPoint { id: number; latitude: number; longitude: number; categoryCode: string; status: ReportStatus; municipalityName?: string; submittedOn: string }
+export interface MapPoint { id: number; latitude: number; longitude: number; categoryCode: string; status: ReportStatus; municipalityName?: string; submittedOn: string; seenBy: number }
 export interface MapDetail extends MapPoint { recipientName: string; address?: string; description?: string; photos: PhotoInfo[] }
-export interface SigningState { state: 'PENDING' | 'SIGNED' | 'REFUSED' | 'EXPIRED' | 'FAILED'; referenceNumber?: string; submissionKey?: string; standing?: Standing }
+export interface SigningState { state: 'PENDING' | 'SIGNED' | 'REFUSED' | 'EXPIRED' | 'FAILED'; referenceNumber?: string; submissionKey?: string; standing?: Standing; name?: string }
 export interface NewReport { categoryCode: string; address: string; latitude?: number; longitude?: number; description: string; reporterContact?: string; submissionKey: string }
 
 /** The problem document of the backend. `detail` is meant for people. */
@@ -120,6 +121,7 @@ export const reportsApi = {
 
   map: (west: number, south: number, east: number, north: number, categoryCode?: string) =>
     get<MapPoint[]>(`/map?west=${west}&south=${south}&east=${east}&north=${north}${categoryCode ? `&categoryCode=${categoryCode}` : ''}`),
+  sight: (id: number, deviceId: string): Promise<MapPoint> => post(`/map/${id}/sightings`, undefined, { 'X-Device-Id': deviceId }).then((r) => r.json()),
   mapDetail: (id: number) => get<MapDetail>(`/map/${id}`),
   mapPhotoUrl: (id: number, photoId: number): Promise<string> =>
     send(`/map/${id}/photos/${photoId}`).then((r) => r.blob()).then((b) => URL.createObjectURL(b)),

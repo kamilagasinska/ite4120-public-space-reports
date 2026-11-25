@@ -9,6 +9,8 @@ import java.time.OffsetDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Report {
 
+    /** How many people saw it, the sender included. */
+    private Integer seenBy;
     private Boolean published;
     /** How often the sender has reminded. */
     private Integer reminders;
@@ -142,4 +144,6 @@ public class Report {
     public void setDaysToRespond(Integer daysToRespond) { this.daysToRespond = daysToRespond; }
     public java.time.OffsetDateTime getLastChangeAt() { return lastChangeAt; }
     public void setLastChangeAt(java.time.OffsetDateTime lastChangeAt) { this.lastChangeAt = lastChangeAt; }
+    public Integer getSeenBy() { return seenBy; }
+    public void setSeenBy(Integer seenBy) { this.seenBy = seenBy; }
 }

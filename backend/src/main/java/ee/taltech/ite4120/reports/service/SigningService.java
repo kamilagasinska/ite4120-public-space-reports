@@ -9,7 +9,6 @@ import ee.taltech.ite4120.reports.model.Signing;
 import ee.taltech.ite4120.reports.model.Standing;
 import ee.taltech.ite4120.reports.repository.SigningRepository;
 import ee.taltech.ite4120.reports.smartid.SmartIdAdapter;
-import ee.taltech.ite4120.reports.smartid.SmartIdAdapter.Result;
 import ee.taltech.ite4120.reports.smartid.TestPersons;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
@@ -65,10 +64,10 @@ public class SigningService {
 
     /** The standing only when signed. The submission key is the sender's proof for later. */
     @JsonInclude(JsonInclude.Include.NON_NULL)
-    public record State(String state, String referenceNumber, String submissionKey, Standing standing) {
+    public record State(String state, String referenceNumber, String submissionKey, Standing standing, String name) {
 
         State(String state, String referenceNumber) {
-            this(state, referenceNumber, null, null);
+            this(state, referenceNumber, null, null, null);
         }
     }
 
@@ -92,6 +91,11 @@ public class SigningService {
         if (s == null) {
             throw new NotFoundException("no such signing");
         }
+        if ("SIGNED".equals(s.getState())) {
+            Report report = reports.signedReport(token);
+            return new State("SIGNED", s.getReferenceNumber(), report.getSubmissionKey(),
+                    report.getReporterId() == null ? null : reports.standing(report.getReporterId()), null);
+        }
         if (!"PENDING".equals(s.getState())) {
             return new State(s.getState(), s.getReferenceNumber());
         }
@@ -100,23 +104,23 @@ public class SigningService {
         }
         Payload p = read(s.getPayload());
         String document = TestPersons.document(p.person());
-        Result result = smartId.poll(s.getSessionId(), document, p.signedText());
-        return switch (result) {
+        SmartIdAdapter.Poll poll = smartId.poll(s.getSessionId(), document, p.signedText());
+        return switch (poll.result()) {
             case RUNNING -> new State("PENDING", null);
             case REFUSED -> finish(s, "REFUSED");
             case EXPIRED -> finish(s, "EXPIRED");
             case FAILED -> finish(s, "FAILED");
-            case SIGNED -> signed(s, p, document);
+            case SIGNED -> signed(s, p, document, poll.name());
         };
     }
 
-    private State signed(Signing s, Payload p, String document) {
+    private State signed(Signing s, Payload p, String document, String name) {
         try {
             Report report = reports.submitSigned(p.toReport(), reporter(document), s.getToken(),
                     smartId.digest(p.signedText()));
             repository.finish(s.getId(), "SIGNED", report.getId());
             return new State("SIGNED", report.getReferenceNumber(), report.getSubmissionKey(),
-                    reports.standing(reporter(document)));
+                    reports.standing(reporter(document)), name);
         } catch (LimitExceededException e) {
             repository.finish(s.getId(), "FAILED", null);
             throw e;

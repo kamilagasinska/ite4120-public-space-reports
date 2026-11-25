@@ -7,11 +7,14 @@ public interface SmartIdAdapter {
 
     record Session(String id, String verificationCode) {}
 
+    /** The name only with SIGNED, for the signing device. It is never stored. */
+    record Poll(Result result, String name) {}
+
     /** Asks the person to sign the text. */
     Session start(String document, byte[] text);
 
     /** SIGNED only when the signature over this text by this person has been verified. */
-    Result poll(String sessionId, String document, byte[] text);
+    Poll poll(String sessionId, String document, byte[] text);
 
     /** The digest that is sent for signing, base64. */
     String digest(byte[] text);

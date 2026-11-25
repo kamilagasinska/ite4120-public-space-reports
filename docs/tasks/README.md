@@ -8,7 +8,7 @@ Routes are found automatically from `frontend/src/pages/<folder>/routes.tsx`, so
 | --- | --- | --- | --- |
 | Resident on the phone | Jevgeni | `frontend/src/pages/reports/` | `reports-ui-resident` |
 | Coordinator on the web | Kamila (proposal) | `frontend/src/pages/reports-coordinator/` | `reports-ui-coordinator` |
-| Public map and status lookup | Duc (proposal) | `frontend/src/pages/reports-map/` | `reports-ui-map` |
+| Web version for the resident on a computer | Duc (proposal) | `frontend/src/pages/reports-map/` | `reports-ui-map` |
 
 To run without installing anything see [cloud.md](cloud.md).
 
@@ -39,19 +39,18 @@ explain the own part at the defence.
 > user `coordinator` has the role. Texts in English. Do not change other files. Explain every
 > choice to me in simple words.
 
-## Prompt · public map and status lookup
+## Prompt · web version for the resident
 
-> Read AGENTS.md and docs/src/specifications/REPORTS.01-public-space-reports.md. Build in
+> Read AGENTS.md, docs/src/specifications/REPORTS.01-public-space-reports.md and the phone
+> pages in frontend/src/pages/reports. Build for a computer screen in
 > frontend/src/pages/reports-map with a routes.tsx that exports `routes`. Use only
-> frontend/src/reportsApi.ts for calls. Page 1 /reports/map is a map with Leaflet (ask before
-> adding the package), background https://tiles.maaamet.ee/tm/wmts/1.0.0/kaart/default/GMC/{z}/{y}/{x}.png
-> with the credit "Maa- ja Ruumiamet". Colour and sign by status as in the specification, filter
+> frontend/src/reportsApi.ts for calls. Page 1 /reports/map is a wide map
+> with MapView from ../reports/MapView (Leaflet is already installed). Colour and sign by status as in the specification, filter
 > by category, a panel with the details and published photos, and a list view of the same
 > points for people who cannot use a map. Page 2 /reports/lookup asks for the reference number
 > and shows the five steps, days to respond, recipient, forwardings, updates and the rejection
 > reason, "No report with this reference number" on 404. Other inputs are @helex/ui or antd.
-> Must work at 360 px width. Texts in English. Do not change other files except package.json
-> for Leaflet. Explain every choice to me in simple words.
+> Must work at 360 px width. Texts in English. Do not change other files. Explain every choice to me in simple words.
 
 ## More parts, writing and checking
 
@@ -71,3 +70,16 @@ These need no installation. A file can be edited on github.com with the pencil. 
 How it counts. The commit must be made from the own account, GitHub shows it under
 Insights, Contributors and in the pull request. A review also counts as visible work, so
 please review each other's pull requests with at least one real question.
+
+## Example, the first contribution in ten minutes
+
+1. Open github.com and sign in with your own account, open our repository.
+2. Open the folder `docs`, press Add file, Create new file.
+3. Name it `diary-<your name>.md`, paste the table header of `diary-jevgeni.md` and write
+   what you have done so far in your own words.
+4. Press Commit changes, choose Create a new branch, Propose changes, Create pull request.
+5. A teammate opens the pull request, Files changed, writes a question, Review changes, Approve.
+6. Press Merge. Your name is now in the history.
+
+The same way works for every text part, for example a new user story. For code parts the
+agent on your computer writes into your folder, then you commit with your account.

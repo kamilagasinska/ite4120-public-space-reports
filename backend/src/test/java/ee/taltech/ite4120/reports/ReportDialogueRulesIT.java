@@ -53,7 +53,7 @@ class ReportDialogueRulesIT {
 
     @BeforeEach
     void cleanSlate() {
-        for (String table : new String[] {"signing", "photo", "message", "forwarding", "status_change", "report", "reporter"}) {
+        for (String table : new String[] {"signing", "sighting", "photo", "message", "forwarding", "status_change", "report", "reporter"}) {
             jdbc.update("delete from reports." + table);
         }
     }
@@ -221,6 +221,29 @@ class ReportDialogueRulesIT {
                 .put("toStatus", "REJECTED").put("reason", "Nothing there").put("falseReport", true), null);
         assertThat(me(device).text("points")).isEqualTo("0");
         assertProblem(get("resident", "/api/reports/me"), 400, "X-Device-Id");
+    }
+
+    /** 34. Others can say that they see it too. */
+    @Test
+    void othersCanSayThatTheySeeItToo() {
+        String sender = device();
+        send("LITTER", sender);
+        String id = mapId();
+        assertThat(map().body.get(0).path("seenBy").asInt()).isEqualTo(1);
+        String other = device();
+        assertThat(sight(id, other).text("seenBy")).isEqualTo("2");
+        assertThat(sight(id, other).text("seenBy")).as("once per device").isEqualTo("2");
+        assertThat(sight(id, sender).text("seenBy")).as("the sender is counted already").isEqualTo("2");
+        assertThat(sight(id, device()).text("seenBy")).isEqualTo("3");
+        assertThat(get(COORDINATOR, "/api/reports?limit=5").body.findValuesAsText("seenBy")).containsExactly("3");
+        assertProblem(sight("999999", other), 404, "map");
+        assertProblem(exchange("resident", request("/api/reports/map/" + id + "/sightings")
+                .POST(HttpRequest.BodyPublishers.noBody())), 400, "X-Device-Id");
+    }
+
+    private Answer sight(String id, String device) {
+        return exchange("resident", request("/api/reports/map/" + id + "/sightings").header("X-Device-Id", device)
+                .POST(HttpRequest.BodyPublishers.noBody()));
     }
 
     // ---- helpers ---------------------------------------------------------

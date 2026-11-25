@@ -102,13 +102,26 @@ public class ReportService {
         return repository.loadBySubmissionKey(report.getSubmissionKey());
     }
 
+    Report signedReport(String token) {
+        return repository.loadBySubmissionKey(SIGNING_KEY + token);
+    }
+
+    /** The hash a device is known by. */
+    public String deviceHash(String deviceId) {
+        return hash.of("device", requireUuid(deviceId));
+    }
+
+    Standing standing(Long reporterId) {
+        return limits.standing(reporters.load(reporterId));
+    }
+
     Standing standing(Reporter reporter) {
         return limits.standing(reporter);
     }
 
     /** Points and trust level of a device. */
     public Standing standing(String deviceId) {
-        return limits.standing(new Reporter(Reporter.Kind.DEVICE, hash.of("device", requireUuid(deviceId))));
+        return limits.standing(new Reporter(Reporter.Kind.DEVICE, deviceHash(deviceId)));
     }
 
     /** An early answer before signing starts. The binding check is made when the report is stored. */

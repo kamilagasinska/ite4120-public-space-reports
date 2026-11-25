@@ -122,6 +122,12 @@ public class DialogueController {
         return service.mapDetail(id);
     }
 
+    @Operation(summary = "I see it too, counted once per device")
+    @PostMapping("/map/{id}/sightings")
+    public MapPoint sight(@PathVariable Long id, @RequestHeader(name = "X-Device-Id", required = false) String deviceId) {
+        return service.sight(id, reports.deviceHash(deviceId));
+    }
+
     @Operation(summary = "A published photo")
     @GetMapping(path = "/map/{id}/photos/{photoId}", produces = MediaType.IMAGE_JPEG_VALUE)
     public byte[] mapPhoto(@PathVariable Long id, @PathVariable Long photoId) {
