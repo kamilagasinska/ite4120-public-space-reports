@@ -343,7 +343,8 @@ and the place on a map. Status, news and forwarding open in a window.
 
 **Showcase data.** The local profile also loads 71 invented past reports over eight
 municipalities (Liquibase context `showcase`), a part of them sent by the
-four Smart-ID demo persons. The addresses are real, the problems and the senders are
+four Smart-ID demo persons. Their test certificates all carry the name OK TEST, so the
+profile shows an invented name and a drawn portrait instead. The addresses are real, the problems and the senders are
 invented and the pictures are drawn. Tests and a production profile do not load them.
 
 **Languages.** The resident pages are in English, Estonian, Russian and Ukrainian, with

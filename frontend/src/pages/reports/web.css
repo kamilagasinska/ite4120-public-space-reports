@@ -4,6 +4,10 @@
 .hio.app .plist { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .hio.app .plist .mine[aria-pressed=true] { outline: 3px solid var(--plum); }
 
+.hio.app .mocklab { align-self: flex-start; margin-bottom: 8px; }
+.hio.app .face svg { width: 56px; height: 56px; margin: 0; }
+.hio.app .bar .lng .ava { width: 34px; height: 34px; margin: 0 0 0 -8px; }
+
 @media (min-width: 960px) {
   .hio.app { max-width: none; padding: 0; }
   .hio.app .tabs, .hio.app .page.p-home .homebar, .hio.app .page.p-welcome .homebar { display: none; }

@@ -5,17 +5,18 @@ import java.util.Locale;
 
 /**
  * The public Smart-ID demo persons the application offers. They are invented by the
- * provider. A production version would ask for a real person instead.
+ * provider, whose certificates all carry the name OK TEST, so the names here are invented
+ * by us. Toomas Kuusk is the person who refuses. A production version would ask for a real person instead.
  */
 public final class TestPersons {
 
     public record TestPerson(String document, String label) {}
 
     public static final List<TestPerson> ALL = List.of(
-            new TestPerson("PNOEE-40504040001-DEM2-Q", "Demo person 1, signs"),
-            new TestPerson("PNOEE-50001029996-DEMO-Q", "Demo person 2, signs"),
-            new TestPerson("PNOEE-39901012239-MOCK-Q", "Demo person 3, signs"),
-            new TestPerson("PNOEE-30403039917-MOCK-Q", "Demo person 4, refuses"));
+            new TestPerson("PNOEE-40504040001-DEM2-Q", "Mari Maasikas"),
+            new TestPerson("PNOEE-50001029996-DEMO-Q", "Rasmus Kask"),
+            new TestPerson("PNOEE-39901012239-MOCK-Q", "Andres Lepik"),
+            new TestPerson("PNOEE-30403039917-MOCK-Q", "Toomas Kuusk"));
 
     private TestPersons() {}
 

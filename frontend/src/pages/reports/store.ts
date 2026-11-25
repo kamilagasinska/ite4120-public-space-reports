@@ -3,7 +3,7 @@ import type { Lang } from './texts';
 
 /** What this phone remembers. Nothing of it is sent except the device number and the keys. */
 export interface Person { document: string; label: string; name?: string }
-export interface SentReport { ref: string; key: string; cat: Cat; address: string; at: string; status?: ReportStatus; signed: boolean; photo: boolean }
+export interface SentReport { ref: string; key: string; cat: Cat; address: string; at: string; status?: ReportStatus; signed: boolean; photo: boolean; /** The signed person, so people on one device do not see each other's reports. */ who?: string }
 export type Cat = 'road' | 'litter' | 'light' | 'tree' | 'graf' | 'items';
 export type Way = 'signed' | 'device' | 'guest';
 

@@ -45,4 +45,4 @@ const ROWS: Record<string, [ref: string, key: string, cat: Cat, address: string,
 const ALL = new Set(Object.values(ROWS).flatMap((rows) => rows.map((r) => r[0])));
 export const isDemo = (s: SentReport): boolean => ALL.has(s.ref);
 export const demoHistory = (document: string): SentReport[] => (import.meta.env.DEV ? ROWS[document] ?? [] : []).map(([ref, key, cat, address, minutes, photo]) =>
-  ({ ref, key, cat, address, at: new Date(Date.now() - minutes * 60_000).toISOString(), signed: true, photo }));
+  ({ ref, key, cat, address, at: new Date(Date.now() - minutes * 60_000).toISOString(), signed: true, photo, who: document }));
