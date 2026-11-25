@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- The public space reports component (REPORTS.01). Released changesets are immutable. -->
+<databaseChangeLog
+  xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+  xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+  http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.27.xsd">
+
+  <include file="reports/db/changelog/reports/reports-schema.sql"/>
+  <include file="reports/db/changelog/reports/01-category.sql"/>
+  <include file="reports/db/changelog/reports/02-report.sql"/>
+  <include file="reports/db/changelog/reports/03-status-change.sql"/>
+  <include file="reports/db/changelog/reports/90-demo-data.sql"/>
+
+</databaseChangeLog>
