@@ -241,6 +241,55 @@ class ReportDialogueRulesIT {
                 .POST(HttpRequest.BodyPublishers.noBody())), 400, "X-Device-Id");
     }
 
+    /** 35. The coordinator finds late reports and searches by text. */
+    @Test
+    void theCoordinatorFindsLateReportsAndSearches() {
+        Sent late = send("LITTER");
+        Sent answered = send("TREES");
+        change(answered, "ACCEPTED", null, false);
+        age("16 days");
+        Sent fresh = send("ROAD_DAMAGE");
+        assertThat(found("late=true")).containsExactly(late.reference);
+        assertThat(found("late=false")).containsExactlyInAnyOrder(late.reference, answered.reference, fresh.reference);
+
+        assertThat(found("q=" + fresh.reference.toLowerCase())).containsExactly(fresh.reference);
+        assertThat(found("q=RAJA")).as("a part of the address").hasSize(3);
+        assertThat(found("q=footpath&categoryCode=TREES")).as("a part of the text").containsExactly(answered.reference);
+        assertThat(found("q=%25")).as("a percent sign is only a character").isEmpty();
+        assertThat(get("resident", "/api/reports?q=raja").status).isEqualTo(403);
+    }
+
+    private java.util.List<String> found(String query) {
+        Answer a = get(COORDINATOR, "/api/reports?limit=50&" + query);
+        assertThat(a.status).as(a.raw).isEqualTo(200);
+        return a.body.findValuesAsText("referenceNumber");
+    }
+
+    /** 36. The coordinator sees how far the sender can be trusted, not who it is. */
+    @Test
+    void theCoordinatorSeesTheTrustOfTheSender() {
+        String device = device();
+        Sent first = send("LITTER", device);
+        change(first, "ACCEPTED", null, false);
+        age("25 hours");
+        Sent second = send("TREES", device);
+        Answer seen = get(COORDINATOR, "/api/reports/" + second.reference);
+        assertThat(seen.text("senderReports")).isEqualTo("2");
+        assertThat(seen.text("senderPoints")).isEqualTo("10");
+        assertThat(seen.text("senderFalseReports")).isEqualTo("0");
+        assertThat(seen.raw).doesNotContain(device);
+        post(COORDINATOR, "/api/reports/" + second.reference + "/status", json.createObjectNode()
+                .put("toStatus", "REJECTED").put("reason", "Nothing there").put("falseReport", true), null);
+        seen = get(COORDINATOR, "/api/reports/" + second.reference);
+        assertThat(seen.text("senderPoints")).isEqualTo("0");
+        assertThat(seen.text("senderFalseReports")).isEqualTo("1");
+
+        assertThat(get("resident", "/api/reports/" + second.reference).body.has("senderReports")).isFalse();
+        Answer guest = report("LITTER", null);
+        assertThat(get(COORDINATOR, "/api/reports/" + guest.text("referenceNumber")).body.has("senderReports"))
+                .as("a guest has no history").isFalse();
+    }
+
     private Answer sight(String id, String device) {
         return exchange("resident", request("/api/reports/map/" + id + "/sightings").header("X-Device-Id", device)
                 .POST(HttpRequest.BodyPublishers.noBody()));
