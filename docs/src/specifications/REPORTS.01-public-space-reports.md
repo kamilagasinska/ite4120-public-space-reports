@@ -109,6 +109,15 @@ address the register answers "not found" for is also accepted unverified. A
 resident must never be blocked from reporting a hazard because another system is
 down, and the coordinator can check the address by hand.
 
+The address is **verified** when the register returns exactly one address for it.
+Several matches are ambiguous and leave the report unverified. The lookup waits at
+most 3 seconds. The transport is configuration (`reports.address-register.mode`,
+`http` or `xroad`). Locally the application imitates the register, and an address
+containing "register-down" makes the imitation answer 503 to show the policy live.
+
+The list without `sort` shows the longest waiting report first. Sort keys are
+`referenceNumber`, `categoryCode`, `address`, `status`, `submittedAt` and `daysOpen`.
+
 ## UI
 
 | Screen | Element | Component | Rules |
