@@ -5,6 +5,8 @@ import ee.taltech.ite4120.reports.addressregister.AddressInfo;
 import ee.taltech.ite4120.reports.addressregister.AddressMapper;
 import ee.taltech.ite4120.reports.addressregister.AddressRegisterAdapter;
 import ee.taltech.ite4120.reports.addressregister.AddressRegisterException;
+import ee.taltech.ite4120.reports.addressregister.LEst97;
+import ee.taltech.ite4120.reports.addressregister.wire.AdsAadress;
 import ee.taltech.ite4120.reports.addressregister.http.wire.AdsGazetteerResponse;
 import java.io.IOException;
 import java.net.URI;
@@ -14,6 +16,7 @@ import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.util.List;
 
 /** Plain HTTP and JSON. Locally the URL points at this application's own imitated register. */
 public class HttpAddressRegisterAdapter implements AddressRegisterAdapter {
@@ -29,19 +32,33 @@ public class HttpAddressRegisterAdapter implements AddressRegisterAdapter {
 
     @Override
     public AddressInfo lookup(String address) {
+        return AddressMapper.toAddressInfo(ask("address=" + URLEncoder.encode(address, StandardCharsets.UTF_8)));
+    }
+
+    @Override
+    public AddressInfo lookupPoint(double latitude, double longitude) {
+        double[] p = LEst97.fromDegrees(latitude, longitude);
+        return AddressMapper.toPlace(ask("x=" + Math.round(p[0]) + "&y=" + Math.round(p[1])));
+    }
+
+    private List<AdsAadress> ask(String query) {
         HttpRequest request = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl + "/gazetteer?address=" + URLEncoder.encode(address, StandardCharsets.UTF_8)))
+                .uri(URI.create(baseUrl + "/gazetteer?" + query))
                 .timeout(Duration.ofSeconds(3))
                 .header("Accept", "application/json")
                 .GET()
                 .build();
         try {
             HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() == 500 && response.body().contains("\"EIEESTI\"")) {
+                /* The register says "not Estonia" this way. A miss, not a failure. */
+                return null;
+            }
             if (response.statusCode() != 200) {
                 throw new AddressRegisterException("address register answered HTTP " + response.statusCode());
             }
             AdsGazetteerResponse wire = json.readValue(response.body(), AdsGazetteerResponse.class);
-            return AddressMapper.toAddressInfo(wire == null ? null : wire.addresses());
+            return wire == null ? null : wire.addresses();
         } catch (IOException e) {
             throw new AddressRegisterException("address register unreachable: " + e.getMessage(), e);
         } catch (InterruptedException e) {

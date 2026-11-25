@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Size;
 /** The requested status change. */
 public class StatusChangeRequest {
 
+    /** Only with REJECTED, resets the trust of the sender. */
+    private boolean falseReport;
     @NotBlank
     private String toStatus;
     @Size(max = 500)
@@ -15,4 +17,6 @@ public class StatusChangeRequest {
     public void setToStatus(String toStatus) { this.toStatus = toStatus; }
     public String getReason() { return reason; }
     public void setReason(String reason) { this.reason = reason; }
+    public boolean isFalseReport() { return falseReport; }
+    public void setFalseReport(boolean falseReport) { this.falseReport = falseReport; }
 }

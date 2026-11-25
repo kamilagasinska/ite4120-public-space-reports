@@ -6,6 +6,7 @@ import java.time.OffsetDateTime;
 /** One recorded change of a report status. */
 public class StatusChange {
 
+    private Boolean falseReport;
     @JsonIgnore
     private Long reportId;
     private String fromStatus;
@@ -26,4 +27,6 @@ public class StatusChange {
     public void setSysCreatedAt(OffsetDateTime sysCreatedAt) { this.sysCreatedAt = sysCreatedAt; }
     public String getSysCreatedBy() { return sysCreatedBy; }
     public void setSysCreatedBy(String sysCreatedBy) { this.sysCreatedBy = sysCreatedBy; }
+    public Boolean getFalseReport() { return falseReport; }
+    public void setFalseReport(Boolean falseReport) { this.falseReport = falseReport; }
 }

@@ -1,6 +1,6 @@
 # REPORTS.01 · Public space reports
 
-> **REPORTS.01** · state **Proposed** (revision 2, identity, limits and geolocation) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
+> **REPORTS.01** · state **Agreed** (revision 2, identity, limits and geolocation) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
 > and [REPORTS-US-002](../user-stories/REPORTS-US-002.md)
 
 ## Description
@@ -76,13 +76,15 @@ not want the device identifier reports as a guest or signs. Nobody is forced to 
 The device identifier is not a phone number or a hardware number, which a browser does
 not reveal. It is pseudonymous personal data. Device records are deleted after 6 months
 without a report. Signed records are kept while the resident uses the service, because
-they hold the trust history, and are deleted on request. IP hashes are cleared after
+they hold the trust history, and an administrator deletes them on request. IP hashes are cleared after
 24 hours. The reports themselves stay.
 
 **Smart-ID.** The resident signs the text of the report. The application sends the
 SHA-512 digest to the Smart-ID demo environment, shows the verification code, and
 stores the report only when the signature is complete and verified with the public key
-of the returned certificate, and the certificate was issued by the demo authority.
+of the returned certificate, and the certificate names the demo authority as issuer
+and the chosen test person as subject. The answer comes over TLS from the provider.
+Checking the certificate chain and revocation is left for production.
 The certificate holds a personal code, so it is discarded after the check and only
 the digest, the time and the keyed hash are kept. The demo offers a fixed list of
 test persons. Nobody types a real personal code or PIN into this application.
@@ -277,5 +279,5 @@ The list without `sort` shows the longest waiting report first. Sort keys are
 5. Smart-ID is used in its public demo environment. It was called on 25.11.2026, three
    test persons signed and the signatures verified.
 6. All municipalities of Estonia are open, as the public address service finds the
-   municipality for any point.
+   municipality for any point. Outside Estonia the place answers 404.
 7. A resident who refuses the device identifier may still report as a guest, once a day.

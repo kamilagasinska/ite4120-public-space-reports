@@ -1,17 +1,24 @@
 package ee.taltech.ite4120.animals.api;
 
 import ee.taltech.ite4120.animals.ownerregistry.OwnerRegistryException;
+import ee.taltech.ite4120.reports.addressregister.AddressRegisterException;
+import ee.taltech.ite4120.reports.service.LimitExceededException;
+import ee.taltech.ite4120.reports.smartid.SmartIdException;
 import org.helex.commons.exception.ApiClientException;
 import org.helex.commons.exception.ApiException;
 import org.helex.commons.exception.ConflictException;
 import org.helex.commons.exception.ForbiddenException;
 import org.helex.commons.exception.NotFoundException;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
  * One error shape for every endpoint: RFC 9457 problem details
@@ -47,6 +54,34 @@ public class ApiErrorHandler {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         pd.setTitle("Invalid request");
         pd.setDetail("request body cannot be read");
+        return pd;
+    }
+
+    /** A request parameter that is missing or of the wrong type. */
+    @ExceptionHandler({MethodArgumentTypeMismatchException.class, MissingServletRequestParameterException.class})
+    public ProblemDetail badParameter(Exception e) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setTitle("Invalid request");
+        String name = e instanceof MethodArgumentTypeMismatchException m ? m.getName()
+                : ((MissingServletRequestParameterException) e).getParameterName();
+        pd.setDetail(name + " is missing or not valid");
+        return pd;
+    }
+
+    @ExceptionHandler(LimitExceededException.class)
+    public ResponseEntity<ProblemDetail> overLimit(LimitExceededException e) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.TOO_MANY_REQUESTS);
+        pd.setTitle("Too many reports");
+        pd.setDetail(e.getMessage());
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, String.valueOf(e.getRetryAfterSeconds())).body(pd);
+    }
+
+    @ExceptionHandler({SmartIdException.class, AddressRegisterException.class})
+    public ProblemDetail upstreamFailure(RuntimeException e) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_GATEWAY);
+        pd.setTitle("Upstream service unavailable");
+        pd.setDetail(e instanceof SmartIdException ? e.getMessage() : "address register is not available");
         return pd;
     }
 

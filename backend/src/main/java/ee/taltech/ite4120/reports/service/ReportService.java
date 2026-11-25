@@ -7,10 +7,16 @@ import ee.taltech.ite4120.reports.dto.ReportQueryParams;
 import ee.taltech.ite4120.reports.model.Category;
 import ee.taltech.ite4120.reports.model.Report;
 import ee.taltech.ite4120.reports.model.ReportStatus;
+import ee.taltech.ite4120.reports.model.Reporter;
 import ee.taltech.ite4120.reports.model.StatusChange;
 import ee.taltech.ite4120.reports.repository.ReportRepository;
+import ee.taltech.ite4120.reports.repository.ReporterRepository;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
 import org.helex.commons.exception.ApiClientException;
 import org.helex.commons.exception.ConflictException;
 import org.helex.commons.exception.NotFoundException;
@@ -19,7 +25,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 /** The business rules of REPORTS.01. */
 @Service
@@ -27,12 +35,25 @@ public class ReportService {
 
     private static final Logger log = LoggerFactory.getLogger(ReportService.class);
     private static final int REFERENCE_ATTEMPTS = 5;
+    private static final Set<String> CHANNELS = Set.of("GUEST", "DEVICE", "SIGNED");
+    private static final String SIGNING_KEY = "signing-";
+    private static final Pattern UUID_PATTERN =
+            Pattern.compile("[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}");
 
     private final ReportRepository repository;
     private final AddressRegisterAdapter addressRegister;
     private final ReportAccess access;
+    private final ReporterRepository reporters;
+    private final ReportLimits limits;
+    private final KeyedHash hash;
+    private final TransactionTemplate transaction;
 
-    public ReportService(ReportRepository repository, AddressRegisterAdapter addressRegister, ReportAccess access) {
+    public ReportService(ReportRepository repository, AddressRegisterAdapter addressRegister, ReportAccess access,
+            ReporterRepository reporters, ReportLimits limits, KeyedHash hash, PlatformTransactionManager transactions) {
+        this.reporters = reporters;
+        this.limits = limits;
+        this.hash = hash;
+        this.transaction = new TransactionTemplate(transactions);
         this.repository = repository;
         this.addressRegister = addressRegister;
         this.access = access;
@@ -51,24 +72,62 @@ public class ReportService {
         return visible(require(referenceNumber));
     }
 
-    /**
-     * Deliberately not transactional. The register call must not hold a database
-     * connection, and the single insert is atomic by itself.
-     */
-    public Submission submit(Report report) {
+    /** A guest or device report. The device identifier is null for a guest. */
+    public Submission submit(Report report, String deviceId, String ip) {
+        if (report.getSubmissionKey() != null && report.getSubmissionKey().trim().startsWith(SIGNING_KEY)) {
+            throw new ApiClientException("submissionKey must not start with " + SIGNING_KEY);
+        }
         validate(report);
+        Reporter reporter = deviceId == null ? null
+                : new Reporter(Reporter.Kind.DEVICE, hash.of("device", requireUuid(deviceId)));
+        report.setChannel(reporter == null ? "GUEST" : "DEVICE");
+        report.setIpHash(hash.of("ip", ip));
+        return store(report, reporter);
+    }
+
+    /** A report whose signature has been verified. The token makes a repeated call harmless. */
+    Report submitSigned(Report report, Reporter reporter, String token, String digest) {
+        validate(report);
+        report.setSubmissionKey(SIGNING_KEY + token);
+        report.setChannel("SIGNED");
+        report.setSignedDigest(digest);
+        store(report, reporter);
+        return repository.loadBySubmissionKey(report.getSubmissionKey());
+    }
+
+    /** An early answer before signing starts. The binding check is made when the report is stored. */
+    void checkLimit(Reporter reporter) {
+        limits.check(reporter, null);
+    }
+
+    /** The place at a map point. Unlike a submit, this has nothing to fall back to, so it fails. */
+    public AddressInfo place(BigDecimal latitude, BigDecimal longitude) {
+        if (latitude.abs().compareTo(BigDecimal.valueOf(90)) > 0 || longitude.abs().compareTo(BigDecimal.valueOf(180)) > 0) {
+            throw new ApiClientException("latitude or longitude is out of range");
+        }
+        AddressInfo place = addressRegister.lookupPoint(latitude.doubleValue(), longitude.doubleValue());
+        if (place == null) {
+            throw new NotFoundException("no municipality at this point");
+        }
+        return place;
+    }
+
+    /**
+     * The register is asked before the transaction, so it never holds a database
+     * connection or a lock. Inside, the limit check and the insert are one step.
+     */
+    private Submission store(Report report, Reporter reporter) {
         Report existing = bySubmissionKey(report.getSubmissionKey());
         if (existing != null) {
             return new Submission(visible(existing), false);
         }
-        AddressInfo confirmed = confirm(report.getAddress());
-        report.setAddressVerified(confirmed != null);
-        report.setAddressCode(confirmed == null ? null : confirmed.code());
+        locate(report);
         for (int attempt = 1; ; attempt++) {
             report.setReferenceNumber(ReferenceNumbers.next());
             try {
-                repository.insert(report);
-                return new Submission(find(report.getReferenceNumber()), true);
+                Report before = transaction.execute(status -> insertWithinLimit(report, reporter));
+                return before != null ? new Submission(visible(before), false)
+                        : new Submission(find(report.getReferenceNumber()), true);
             } catch (DuplicateKeyException e) {
                 /* Either the same form was submitted at the same moment, or the random number is taken. */
                 existing = bySubmissionKey(report.getSubmissionKey());
@@ -82,8 +141,21 @@ public class ReportService {
         }
     }
 
+    /** The existing report when the same form arrived while waiting for the lock, otherwise null. */
+    private Report insertWithinLimit(Report report, Reporter reporter) {
+        limits.lock(reporter, report.getIpHash());
+        Report existing = bySubmissionKey(report.getSubmissionKey());
+        if (existing != null) {
+            return existing;
+        }
+        limits.check(reporter, report.getIpHash());
+        report.setReporterId(reporter == null ? null : reporters.touch(reporter));
+        repository.insert(report);
+        return null;
+    }
+
     @Transactional
-    public Report changeStatus(String referenceNumber, String toStatus, String reason) {
+    public Report changeStatus(String referenceNumber, String toStatus, String reason, boolean falseReport) {
         access.requireCoordinator();
         if (!ReportStatus.isKnown(toStatus)) {
             throw new ApiClientException("unknown toStatus: " + toStatus);
@@ -98,10 +170,13 @@ public class ReportService {
         if (to == ReportStatus.REJECTED && cleanReason == null) {
             throw new ApiClientException("reason is required when a report is rejected");
         }
+        if (falseReport && to != ReportStatus.REJECTED) {
+            throw new ApiClientException("falseReport is only for a rejected report");
+        }
         if (!repository.updateStatus(report.getId(), from.name(), to.name())) {
             throw new ConflictException("report", "status is no longer " + from + ", reload the report");
         }
-        repository.insertStatusChange(report.getId(), from.name(), to.name(), cleanReason);
+        repository.insertStatusChange(report.getId(), from.name(), to.name(), cleanReason, falseReport);
         return require(report.getReferenceNumber());
     }
 
@@ -130,17 +205,38 @@ public class ReportService {
         return key == null ? null : repository.loadBySubmissionKey(key);
     }
 
-    /** Fail open. A register that is down never blocks a report. */
-    private AddressInfo confirm(String address) {
+    /** Fills address code and municipality. Fail open, a register that is down never blocks a report. */
+    private void locate(Report report) {
+        AddressInfo byAddress = ask(() -> addressRegister.lookup(report.getAddress()));
+        AddressInfo byPoint = report.getLatitude() == null ? null : ask(() -> addressRegister.lookupPoint(
+                report.getLatitude().doubleValue(), report.getLongitude().doubleValue()));
+        report.setAddressVerified(byAddress != null && byAddress.code() != null);
+        report.setAddressCode(byAddress == null ? null : byAddress.code());
+        AddressInfo place = byPoint != null ? byPoint : byAddress;
+        if (place != null) {
+            report.setMunicipalityCode(place.municipalityCode());
+            report.setMunicipalityName(place.municipalityName());
+        }
+    }
+
+    private static AddressInfo ask(Supplier<AddressInfo> question) {
         try {
-            return addressRegister.lookup(address);
+            return question.get();
         } catch (AddressRegisterException e) {
-            log.warn("address not verified: {}", e.getMessage());
+            log.warn("place not verified: {}", e.getMessage());
             return null;
         }
     }
 
-    private void validate(Report r) {
+    private static String requireUuid(String deviceId) {
+        if (!UUID_PATTERN.matcher(deviceId).matches()) {
+            throw new ApiClientException("X-Device-Id must be a UUID");
+        }
+        return deviceId.toLowerCase(Locale.ROOT);
+    }
+
+    /** Also cleans the text fields of the report. */
+    void validate(Report r) {
         r.setAddress(r.getAddress().trim());
         r.setDescription(r.getDescription().trim());
         r.setReporterContact(blankToNull(r.getReporterContact()));
@@ -160,6 +256,9 @@ public class ReportService {
         }
         if (blankToNull(p.getStatus()) != null && !ReportStatus.isKnown(p.getStatus())) {
             throw new ApiClientException("unknown status: " + p.getStatus());
+        }
+        if (blankToNull(p.getChannel()) != null && !CHANNELS.contains(p.getChannel())) {
+            throw new ApiClientException("unknown channel: " + p.getChannel());
         }
         if (p.getLimit() != null && p.getLimit() < 0 || p.getOffset() != null && p.getOffset() < 0) {
             throw new ApiClientException("limit and offset must not be negative");

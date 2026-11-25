@@ -21,7 +21,9 @@ public class ReportRepository extends BaseRepository {
             "floor(extract(epoch from (current_timestamp - r.sys_created_at)) / 86400)::int";
 
     private static final String SELECT = "select r.*, r.sys_created_at as submitted_at, "
-            + DAYS_OPEN + " as days_open, c.name as category_name, c.responsible_unit "
+            + DAYS_OPEN + " as days_open, c.name as category_name, c.responsible_unit, "
+            + "(select s.reason from reports.status_change s where s.report_id = r.id and s.to_status = 'REJECTED' "
+            + "and s.sys_status = 'A' order by s.id desc limit 1) as rejection_reason "
             + "from reports.report r join reports.category c on c.code = r.category_code ";
 
     private static final Map<String, String> SORT = Map.of(
@@ -85,18 +87,26 @@ public class ReportRepository extends BaseRepository {
         if (p.getStatus() != null && !p.getStatus().isBlank()) {
             sb.and("r.status = ?", p.getStatus());
         }
+        if (p.getMunicipalityCode() != null && !p.getMunicipalityCode().isBlank()) {
+            sb.and("r.municipality_code = ?", p.getMunicipalityCode());
+        }
+        if (p.getChannel() != null && !p.getChannel().isBlank()) {
+            sb.and("r.channel = ?", p.getChannel());
+        }
         return sb;
     }
 
     public Long insert(Report r) {
         String sql = """
                 insert into reports.report (reference_number, category_code, address, address_code, address_verified,
-                                            latitude, longitude, description, reporter_contact, submission_key)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                            latitude, longitude, description, reporter_contact, submission_key,
+                                            municipality_code, municipality_name, channel, reporter_id, ip_hash, signed_digest)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 returning id""";
         return queryForObject(sql, Long.class, r.getReferenceNumber(), r.getCategoryCode(), r.getAddress(),
                 r.getAddressCode(), r.getAddressVerified(), r.getLatitude(), r.getLongitude(),
-                r.getDescription(), r.getReporterContact(), r.getSubmissionKey());
+                r.getDescription(), r.getReporterContact(), r.getSubmissionKey(), r.getMunicipalityCode(),
+                r.getMunicipalityName(), r.getChannel(), r.getReporterId(), r.getIpHash(), r.getSignedDigest());
     }
 
     /** Changes the status only if it is still the expected one, so two coordinators cannot overwrite each other. */
@@ -106,10 +116,10 @@ public class ReportRepository extends BaseRepository {
                 to, id, from) == 1;
     }
 
-    public void insertStatusChange(Long reportId, String from, String to, String reason) {
+    public void insertStatusChange(Long reportId, String from, String to, String reason, boolean falseReport) {
         jdbcTemplate.update(
-                "insert into reports.status_change (report_id, from_status, to_status, reason) values (?, ?, ?, ?)",
-                reportId, from, to, reason);
+                "insert into reports.status_change (report_id, from_status, to_status, reason, false_report) "
+                        + "values (?, ?, ?, ?, ?)", reportId, from, to, reason, falseReport);
     }
 
     public List<StatusChange> history(Long reportId) {

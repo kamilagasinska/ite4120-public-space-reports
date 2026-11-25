@@ -50,6 +50,7 @@ class ReportIdentityRulesIT {
 
     private static final FakeSmartId SMART_ID = new FakeSmartId("PNOEE-40504040001");
     private static volatile int registerStatus;
+    private static volatile boolean outsideEstonia;
     private static final HttpServer REGISTER = startRegister();
 
     @Autowired
@@ -230,6 +231,10 @@ class ReportIdentityRulesIT {
         Answer list = get(COORDINATOR, "/api/reports?municipalityCode=725&limit=100");
         assertThat(list.body.findValuesAsText("referenceNumber")).containsExactly(byPoint.text("referenceNumber"));
 
+        outsideEstonia = true;
+        assertProblem(get("resident", "/api/reports/place?latitude=60.17&longitude=24.94"), 404, "municipality");
+        outsideEstonia = false;
+
         registerStatus = 503;
         Answer down = report(UUID.randomUUID().toString());
         assertThat(down.status).isEqualTo(201);
@@ -356,8 +361,11 @@ class ReportIdentityRulesIT {
                                 + "\"ehakov\":\"725\",\"omavalitsus\":\"Saue vald\"}]}"
                         : "{\"addresses\":[{\"ads_oid\":\"ME1\",\"taisaadress\":\"Harju maakond, Tallinn, Raja tn 15\","
                                 + "\"ehakov\":\"784\",\"omavalitsus\":\"Tallinn\"}]}";
+                if (outsideEstonia) {
+                    answer = "{\"error\":\"EIEESTI\"}";
+                }
                 byte[] bytes = answer.getBytes(StandardCharsets.UTF_8);
-                exchange.sendResponseHeaders(registerStatus, bytes.length);
+                exchange.sendResponseHeaders(outsideEstonia ? 500 : registerStatus, bytes.length);
                 exchange.getResponseBody().write(bytes);
                 exchange.close();
             });

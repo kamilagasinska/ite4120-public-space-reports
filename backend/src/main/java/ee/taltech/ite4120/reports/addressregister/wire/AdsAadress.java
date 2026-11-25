@@ -8,4 +8,4 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * published contract before a real call.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public record AdsAadress(String ads_oid, String taisaadress) {}
+public record AdsAadress(String ads_oid, String taisaadress, String ehakov, String omavalitsus) {}

@@ -24,12 +24,18 @@ import org.springframework.web.bind.annotation.RestController;
 public class MockAddressRegisterController {
 
     private static final List<AdsAadress> KNOWN = List.of(
-            new AdsAadress("ME00000001", "Harju maakond, Tallinn, Mustamäe linnaosa, Ehitajate tee 5"),
-            new AdsAadress("ME00000002", "Harju maakond, Tallinn, Mustamäe linnaosa, Raja 15"),
-            new AdsAadress("ME00000003", "Tartu maakond, Tartu, Raekoja plats 1"));
+            new AdsAadress("ME00000001", "Harju maakond, Tallinn, Mustamäe linnaosa, Ehitajate tee 5", "784", "Tallinn"),
+            new AdsAadress("ME00000002", "Harju maakond, Tallinn, Mustamäe linnaosa, Raja 15", "784", "Tallinn"),
+            new AdsAadress("ME00000003", "Tartu maakond, Tartu, Raekoja plats 1", "793", "Tartu linn"));
 
     @GetMapping("/gazetteer")
-    public ResponseEntity<AdsGazetteerResponse> gazetteer(@RequestParam String address) {
+    public ResponseEntity<AdsGazetteerResponse> gazetteer(
+            @RequestParam(required = false) String address, @RequestParam(required = false) Long x) {
+        if (address == null) {
+            /* A point. West of this easting is the imitated Tallinn, the rest Tartu. */
+            return ResponseEntity.ok(new AdsGazetteerResponse(
+                    x == null ? List.of() : List.of(KNOWN.get(x < 600000 ? 0 : 2))));
+        }
         if (address.toLowerCase().contains("register-down")) {
             return ResponseEntity.status(503).build();
         }

@@ -54,8 +54,13 @@ animals:
 reports:
   # User names with the coordinator role. Empty means nobody, the API fails closed.
   coordinators: ""
+  # Key of the hashes of IP addresses, devices and persons. Random per start when empty.
+  hash-secret: ${REPORTS_HASH_SECRET:}
+  smart-id:
+    url: https://sid.demo.sk.ee/smart-id-rp/v3
+    trusted-issuer: TEST of SK ID Solutions EID-Q 2024E
   address-register:
     # http (default) or xroad, as for the owner registry above.
     mode: http
-    url: http://localhost:18440/mock-registry/ads
+    url: ${REPORTS_ADDRESS_URL:http://localhost:18440/mock-registry/ads}
     mock-server: false
