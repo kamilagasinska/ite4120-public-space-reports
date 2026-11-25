@@ -283,7 +283,8 @@ public class ReportService {
         AddressInfo byAddress = ask(() -> addressRegister.lookup(report.getAddress()));
         AddressInfo byPoint = report.getLatitude() == null ? null : ask(() -> addressRegister.lookupPoint(
                 report.getLatitude().doubleValue(), report.getLongitude().doubleValue()));
-        report.setAddressVerified(byAddress != null && byAddress.code() != null);
+        boolean chosenOnMap = byPoint != null && report.getAddress().equals(byPoint.fullAddress());
+        report.setAddressVerified(chosenOnMap || byAddress != null && byAddress.code() != null);
         report.setAddressCode(byAddress == null ? null : byAddress.code());
         AddressInfo place = byPoint != null ? byPoint : byAddress;
         if (place != null) {

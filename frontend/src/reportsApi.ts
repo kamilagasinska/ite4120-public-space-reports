@@ -62,7 +62,8 @@ export class ApiProblem extends Error {
 const BASE = '/api/reports';
 
 async function send(path: string, init: RequestInit = {}): Promise<Response> {
-  const user = localStorage.getItem('helex_mock_user') || 'resident';
+  /* The template resets its mock user on every load, so these pages keep an own one. */
+  const user = window.location.pathname.startsWith('/spot') ? 'resident' : localStorage.getItem('reports_user') || 'resident';
   const response = await fetch(BASE + path, {
     ...init,
     headers: { Authorization: `Bearer ${user}`, ...(init.headers as Record<string, string> | undefined) },

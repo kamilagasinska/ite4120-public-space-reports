@@ -235,6 +235,12 @@ class ReportIdentityRulesIT {
         Answer list = get(COORDINATOR, "/api/reports?municipalityCode=725&limit=100");
         assertThat(list.body.findValuesAsText("referenceNumber")).containsExactly(byPoint.text("referenceNumber"));
 
+        ObjectNode chosen = body().put("address", "Harju maakond, Saue vald, Toonekure").put("latitude", 59.32).put("longitude", 24.55);
+        assertThat(post("resident", "/api/reports", chosen, UUID.randomUUID().toString()).text("addressVerified"))
+                .as("the register itself gave this address for the point").isEqualTo("true");
+        assertThat(post("resident", "/api/reports", body().put("address", "Toonekure"), UUID.randomUUID().toString())
+                .text("addressVerified")).as("ambiguous text alone").isEqualTo("false");
+
         outsideEstonia = true;
         assertProblem(get("resident", "/api/reports/place?latitude=60.17&longitude=24.94"), 404, "municipality");
         outsideEstonia = false;
@@ -365,6 +371,9 @@ class ReportIdentityRulesIT {
                                 + "\"ehakov\":\"725\",\"omavalitsus\":\"Saue vald\"}]}"
                         : "{\"addresses\":[{\"ads_oid\":\"ME1\",\"taisaadress\":\"Harju maakond, Tallinn, Raja tn 15\","
                                 + "\"ehakov\":\"784\",\"omavalitsus\":\"Tallinn\"}]}";
+                if (!point && exchange.getRequestURI().getQuery().contains("Toonekure")) {
+                    answer = "{\"addresses\":[{\"ads_oid\":\"A\",\"ehakov\":\"725\"},{\"ads_oid\":\"B\",\"ehakov\":\"725\"}]}";
+                }
                 if (outsideEstonia) {
                     answer = "{\"error\":\"EIEESTI\"}";
                 }

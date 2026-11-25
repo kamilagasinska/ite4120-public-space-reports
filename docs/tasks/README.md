@@ -7,7 +7,9 @@ Routes are found automatically from `frontend/src/pages/<folder>/routes.tsx`, so
 | Part | Who | Folder | Branch |
 | --- | --- | --- | --- |
 | Resident on the phone | Jevgeni | `frontend/src/pages/reports/` | `reports-ui-resident` |
-| Coordinator on the web | Kamila (proposal) | `frontend/src/pages/reports-coordinator/` | `reports-ui-coordinator` |
+| Coordinator on the web, first version | Jevgeni, done | `frontend/src/pages/reports-coordinator/` | `reports-ui-coordinator` |
+| Coordinator review and own improvements | Kamila (proposal) | same folder, after the first version is merged | `coordinator-review` |
+| X-Road status page | Kamila (proposal) | `frontend/src/pages/reports-xroad/` | `reports-ui-xroad` |
 | Web version for the resident on a computer | Duc (proposal) | `frontend/src/pages/reports-map/` | `reports-ui-map` |
 
 To run without installing anything see [cloud.md](cloud.md).
@@ -23,21 +25,20 @@ explain the own part at the defence.
 4. Look at the result in the browser, change what you do not like, read the code.
 5. `npx tsc -b`, commit, push, open a pull request, wait for green checks.
 
-## Prompt · coordinator on the web
+## Prompt · X-Road status page
 
-> Read AGENTS.md, docs/src/specifications/REPORTS.01-public-space-reports.md and
-> frontend/src/pages/AnimalList.tsx and AnimalDetail.tsx. Build the coordinator pages in
-> frontend/src/pages/reports-coordinator with a routes.tsx that exports `routes`. Use only
-> frontend/src/reportsApi.ts for calls and only @helex/ui and antd components. Page 1
-> /reports is a ResourceList with filters for category, status, municipality and channel,
-> columns reference number (link), category, recipient, municipality, address with the tag
-> "address not verified", status, days open, days to respond (late is marked), reminders.
-> Page 2 /reports/:referenceNumber is a ResourceForm with useDataController, photos, status
-> change with reason, "false report" and "publish on the map", update with a day, forward
-> to another recipient, photos of the result, history, forwardings, messages. A small card
-> shows the X-Road status. A user who is not a coordinator sees a clear "no access". The
-> user `coordinator` has the role. Texts in English. Do not change other files. Explain every
-> choice to me in simple words.
+> Read AGENTS.md and the X-Road parts of docs/src/specifications/REPORTS.01-public-space-reports.md.
+> Ask me first what the page should show and to whom, propose two options and wait for my
+> choice. Then build /reports-xroad in frontend/src/pages/reports-xroad with a routes.tsx that
+> exports `routes`, using reportsApi.xroadStatus() and @helex/ui and antd components only.
+> Show loading, available and not available, and "no access" for a resident. Explain every
+> part to me in simple words and ask me three questions about it at the end.
+
+## Coordinator review
+
+Work as a coordinator for half an hour, accept, forward, reject and solve invented reports,
+write down what is hard or wrong, decide what to change, and change it with your agent.
+Your decisions and your corrections go into your diary.
 
 ## Prompt · web version for the resident
 
