@@ -86,7 +86,8 @@ public class ReportController {
     @ApiResponse(responseCode = "409", description = "This status change is not allowed")
     @PostMapping("/{referenceNumber}/status")
     public Report changeStatus(@PathVariable String referenceNumber, @Valid @RequestBody StatusChangeRequest body) {
-        return service.changeStatus(referenceNumber, body.getToStatus(), body.getReason(), body.isFalseReport());
+        return service.changeStatus(referenceNumber, body.getToStatus(), body.getReason(), body.isFalseReport(),
+                body.isPublish());
     }
 
     @Operation(summary = "Status changes of a report, oldest first (coordinator)")

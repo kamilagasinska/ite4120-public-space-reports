@@ -52,16 +52,26 @@ public class ReporterRepository extends BaseRepository {
         return new Usage(jdbcTemplate.queryForList(AGES + condition + NEWEST_FIRST, Long.class, params));
     }
 
-    /** Resolved reports of the reporter, counted from the last false report. */
-    public int resolvedSinceFalseReport(Reporter reporter) {
+    /**
+     * 10 for a confirmed report, 5 more when it came with a photo, 20 more when it is
+     * solved. Only reports that changed after the last false report count.
+     */
+    public int points(Reporter reporter) {
         String sql = """
-                with changes as (
-                    select s.to_status, s.false_report, s.id
-                      from reports.status_change s join reports.report r on r.id = s.report_id
-                     where s.sys_status = 'A' and r.sys_status = 'A' and %s)
-                select count(*) from changes
-                 where to_status = 'RESOLVED'
-                   and id > coalesce((select max(id) from changes where false_report), 0)""".formatted(OF_REPORTER);
+                with mine as (
+                    select r.id, r.status, (select max(s.id) from reports.status_change s
+                                             where s.report_id = r.id and s.sys_status = 'A') as last_change
+                      from reports.report r where r.sys_status = 'A' and %s),
+                reset as (
+                    select coalesce(max(s.id), 0) as id from reports.status_change s join mine on mine.id = s.report_id
+                     where s.false_report and s.sys_status = 'A')
+                select coalesce(sum(
+                    case when status in ('ACCEPTED', 'IN_PROGRESS', 'RESOLVED') then 10
+                         + case when exists (select 1 from reports.photo p where p.report_id = mine.id
+                                                and p.kind = 'BEFORE' and p.sys_status = 'A') then 5 else 0 end
+                         + case when status = 'RESOLVED' then 20 else 0 end
+                         else 0 end), 0)::int
+                  from mine, reset where last_change > reset.id""".formatted(OF_REPORTER);
         Integer n = jdbcTemplate.queryForObject(sql, Integer.class, reporter.kind().name(), reporter.keyHash());
         return n == null ? 0 : n;
     }
@@ -89,6 +99,13 @@ public class ReporterRepository extends BaseRepository {
                 + "and last_report_at < clock_timestamp() - interval '6 months'";
         jdbcTemplate.update("update reports.report set reporter_id = null where reporter_id in (" + old + ")");
         return jdbcTemplate.update("delete from reports.reporter where id in (" + old + ")");
+    }
+
+    /** Photos are kept for 6 months after the report was closed. */
+    public int deleteOldPhotos() {
+        return jdbcTemplate.update("delete from reports.photo p using reports.report r where r.id = p.report_id "
+                + "and r.status in ('RESOLVED', 'REJECTED') and (select max(s.sys_created_at) from reports.status_change s "
+                + "where s.report_id = r.id) < clock_timestamp() - interval '6 months'");
     }
 
     public int expireSignings() {

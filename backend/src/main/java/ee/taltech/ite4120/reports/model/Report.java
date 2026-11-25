@@ -9,6 +9,15 @@ import java.time.OffsetDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Report {
 
+    private Boolean published;
+    /** How often the sender has reminded. */
+    private Integer reminders;
+    /** When an answer is due. Absent once the coordinator has reacted. */
+    private java.time.LocalDate respondBy;
+    /** Negative when the answer is late. */
+    private Integer daysToRespond;
+    @JsonIgnore
+    private java.time.OffsetDateTime lastChangeAt;
     private String recipientKind;
     private String recipientName;
     private String municipalityCode;
@@ -59,6 +68,7 @@ public class Report {
         sysModifiedAt = null;
         sysModifiedBy = null;
         sysVersion = null;
+        reminders = null;
         return this;
     }
 
@@ -122,4 +132,14 @@ public class Report {
     public void setRecipientKind(String recipientKind) { this.recipientKind = recipientKind; }
     public String getRecipientName() { return recipientName; }
     public void setRecipientName(String recipientName) { this.recipientName = recipientName; }
+    public Boolean getPublished() { return published; }
+    public void setPublished(Boolean published) { this.published = published; }
+    public Integer getReminders() { return reminders; }
+    public void setReminders(Integer reminders) { this.reminders = reminders; }
+    public java.time.LocalDate getRespondBy() { return respondBy; }
+    public void setRespondBy(java.time.LocalDate respondBy) { this.respondBy = respondBy; }
+    public Integer getDaysToRespond() { return daysToRespond; }
+    public void setDaysToRespond(Integer daysToRespond) { this.daysToRespond = daysToRespond; }
+    public java.time.OffsetDateTime getLastChangeAt() { return lastChangeAt; }
+    public void setLastChangeAt(java.time.OffsetDateTime lastChangeAt) { this.lastChangeAt = lastChangeAt; }
 }

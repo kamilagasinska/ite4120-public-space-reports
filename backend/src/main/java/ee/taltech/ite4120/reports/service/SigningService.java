@@ -1,10 +1,12 @@
 package ee.taltech.ite4120.reports.service;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.taltech.ite4120.reports.model.Report;
 import ee.taltech.ite4120.reports.model.Reporter;
 import ee.taltech.ite4120.reports.model.Signing;
+import ee.taltech.ite4120.reports.model.Standing;
 import ee.taltech.ite4120.reports.repository.SigningRepository;
 import ee.taltech.ite4120.reports.smartid.SmartIdAdapter;
 import ee.taltech.ite4120.reports.smartid.SmartIdAdapter.Result;
@@ -61,7 +63,14 @@ public class SigningService {
 
     public record Started(String token, String verificationCode) {}
 
-    public record State(String state, String referenceNumber) {}
+    /** The standing only when signed. The submission key is the sender's proof for later. */
+    @JsonInclude(JsonInclude.Include.NON_NULL)
+    public record State(String state, String referenceNumber, String submissionKey, Standing standing) {
+
+        State(String state, String referenceNumber) {
+            this(state, referenceNumber, null, null);
+        }
+    }
 
     public Started start(Report report, String document) {
         int person = TestPersons.index(document);
@@ -106,7 +115,8 @@ public class SigningService {
             Report report = reports.submitSigned(p.toReport(), reporter(document), s.getToken(),
                     smartId.digest(p.signedText()));
             repository.finish(s.getId(), "SIGNED", report.getId());
-            return new State("SIGNED", report.getReferenceNumber());
+            return new State("SIGNED", report.getReferenceNumber(), report.getSubmissionKey(),
+                    reports.standing(reporter(document)));
         } catch (LimitExceededException e) {
             repository.finish(s.getId(), "FAILED", null);
             throw e;

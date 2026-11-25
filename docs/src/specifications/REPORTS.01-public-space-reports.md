@@ -1,12 +1,12 @@
 # REPORTS.01 · Public space reports
 
-> **REPORTS.01** · state **Agreed** (revision 3, recipient and X-Road) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
+> **REPORTS.01** · state **Agreed** (revision 4, categories, photos, public map and dialogue) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
 > and [REPORTS-US-002](../user-stories/REPORTS-US-002.md)
 
 ## Description
 
 A register of problems in public space reported by residents to the local
-government, limited to road damage and litter. A resident submits a report with a
+government, in nine categories from road damage to litter and lighting. A resident submits a report with a
 category, an address, an optional map point and a description, receives a
 reference number and can look up the report's status with it. Each report is
 automatically assigned to the municipal unit responsible for its category. A
@@ -32,11 +32,8 @@ logging, role-based access and WCAG 2.2 AA. FixMyStreet Pro (UK G-Cloud) offers
 categories, map location, status updates and the Open311 API. This component
 implements their common core.
 
-Excluded are photos, video and audio (in TEHIK's rules files belong in object
-storage, beyond this course), a public map of reports, nearby waste collection
-points, notifications by email or SMS, assigning work to individual crews,
-duplicate detection, statistics dashboards, problem types other than road damage
-and litter, a production Smart-ID contract (the demo environment only), and real
+Excluded are video and audio, nearby waste collection points, notifications by email or SMS, assigning work to individual crews,
+duplicate detection, statistics dashboards, a production Smart-ID contract (the demo environment only), and real
 sign-in of coordinators (mock auth only).
 
 ## Roles
@@ -57,13 +54,14 @@ number never returns the contact to a resident.
 | Device | a keyed hash of a random identifier kept in the browser | trust level 0 |
 | Signed | a keyed hash of the Smart-ID person | trust level 0 of the signed scale |
 
-| Trust level | Reached with | Device limit | Signed limit |
+| Trust level | From | Device limit | Signed limit |
 | --- | --- | --- | --- |
-| 0 | start | 1 in 10 minutes, 5 a day | 1 a minute, 50 a day |
-| 1 | 3 resolved reports | 1 in 5 minutes, 10 a day | 1 a minute, 100 a day |
-| 2 | 10 resolved reports | 1 in 2 minutes, 20 a day | 1 a minute, 200 a day |
+| 0 | 0 points | 1 in 10 minutes, 5 a day | 1 a minute, 50 a day |
+| 1 | 50 points | 1 in 5 minutes, 10 a day | 1 a minute, 100 a day |
+| 2 | 150 points | 1 in 2 minutes, 20 a day | 1 a minute, 200 a day |
+| 3 | 300 points | 1 a minute, 30 a day | 1 a minute, 300 a day |
 
-The level is calculated from the reporter's resolved reports. A normal rejection does
+The level is calculated from the reporter's points. A normal rejection does
 not change it. When a coordinator marks a rejected report as false, the count starts
 again from zero at that moment. Guest and device reports together are also limited to
 20 a day from one IP address, so clearing the browser does not remove every limit.
@@ -93,6 +91,70 @@ test persons. Nobody types a real personal code or PIN into this application.
 refuses, nothing is stored as signed. The form keeps its content and offers to send as
 device or guest instead.
 
+## Categories
+
+| Code | Name | Responsible unit | On the public map |
+| --- | --- | --- | --- |
+| ROAD_DAMAGE | Road or street | Roads Department | yes |
+| LITTER | Litter | Environment Department | yes |
+| LIGHTING | Street lighting | Lighting Department | yes |
+| TREES | Trees and parks | Parks Department | yes |
+| DANGEROUS_OBJECT | Dangerous object | Safety Department | yes |
+| DEAD_ANIMAL | Dead animal | Environment Department | yes |
+| VANDALISM | Graffiti and vandalism | Property Department | yes |
+| PUBLIC_ORDER | Public order | Public Order Department | no, it is about people |
+| OTHER | Something else | Coordinator | yes |
+
+The first seven municipal topics of Anna teada are covered. The form tells the resident
+to call 112 first when there is danger to life. OTHER goes to the coordinator.
+
+## Photos
+
+A resident may add up to 5 photos, JPEG or PNG, at most 8 MB each. The server decodes
+every photo and stores a new JPEG of at most 1600 px, so the location and the camera
+data inside the file are dropped and a file that is not a picture is refused (400).
+Photos can show faces
+and number plates, therefore only the sender and the coordinator see them until the
+coordinator publishes the report. They are deleted 6 months after the report is closed.
+The coordinator can add up to 5 photos of the result. Photos are kept in the database
+behind a storage interface. Production would use object storage (TEHIK).
+
+## Public map
+
+Anyone signed in sees reports as points on a map. A point shows the category, the
+status, the municipality and the date, rounded to 4 decimals, about 10 metres. The
+description, the address and the photos appear when the coordinator has looked at them
+and published the report, because the text of a stranger can name a person. The
+reference number, the contact and the sender are never shown. PUBLIC_ORDER is never on
+the map. A rejected report stays for 3 days without text, a resolved one for 30 days.
+Colours are yellow for received, blue for accepted, orange for in progress, green for
+resolved and red for rejected, always together with a sign so colour is not the only
+cue. The background is the map of the Estonian Land and Spatial Development Board.
+
+## Steps and dialogue
+
+| Step for the resident | Meaning |
+| --- | --- |
+| Reported | RECEIVED |
+| Accepted | ACCEPTED, the coordinator has confirmed it |
+| In progress | IN_PROGRESS |
+| Update | a message of the coordinator, with a day to expect something |
+| Done | RESOLVED, with photos of the result, or REJECTED with the reason |
+
+The resident sees how many days are left for the first answer, 15 days from sending,
+following the general deadline for answering people in Estonia. In this course it is
+only a counter and the legal side was not checked. The counter ends with the first
+reaction of the coordinator.
+
+The sender is known by the submission key of the report, which only the sending device
+has. The sender can remind once in 3 days, and within 30 days of RESOLVED say that the
+problem remains, which reopens the report as ACCEPTED.
+
+**Points.** A confirmed report gives 10, 5 more with a photo, and 20 more when it is
+solved. A reopened report loses the 20 until it is solved again. A false report sets
+the points to 0. Levels begin at 0, 50, 150 and 300 points and are the trust levels.
+Rewards are not promised.
+
 ## Recipient
 
 | Category and place | Recipient |
@@ -114,9 +176,9 @@ and why. In this course nothing is delivered to a real authority.
 
 | Table | Field | Type | Rules |
 | --- | --- | --- | --- |
-| `reports.category` | `code` PK | text | reference list ROAD_DAMAGE, LITTER |
+| `reports.category` | `code` PK | text | reference list, see Categories |
 | | `name` | text | display name |
-| | `responsible_unit` | text | required, ≤100; ROAD_DAMAGE → Roads Department, LITTER → Environment Department |
+| | `responsible_unit` | text | required, ≤100, see Categories |
 | `reports.report` | `id` PK | bigint | from `core.seq_id` |
 | | `reference_number` | text | required, **unique among active rows**, generated by the system, never typed by the user; `R-<year>-` plus 6 random characters A-Z and 0-9, see Decisions |
 | | `category_code` | text | required, FK → category |
@@ -135,7 +197,7 @@ and why. In this course nothing is delivered to a real authority.
 | | `reporter_id` | bigint | FK → reporter; empty for a guest |
 | | `ip_hash` | text | optional; cleared after 24 hours |
 | | `signed_digest` | text | required when the channel is SIGNED |
-| | `status` | text | required, default RECEIVED; one of RECEIVED, IN_PROGRESS, RESOLVED, REJECTED |
+| | `status` | text | required, default RECEIVED; one of RECEIVED, ACCEPTED, IN_PROGRESS, RESOLVED, REJECTED |
 | | `submission_key` | text | optional, ≤64, unique among active rows; sent by the form so a repeated submit cannot create a duplicate |
 | | `sys_*` | platform | trigger-managed; `sys_created_at` and `sys_created_by` are the submission time and user |
 | `reports.status_change` | `id` PK | bigint | from `core.seq_id` |
@@ -155,6 +217,17 @@ and why. In this course nothing is delivered to a real authority.
 | | `from_name`, `to_kind`, `to_name` | text | required; kind is STATE_ROADS, MUNICIPALITY or OTHER |
 | | `reason` | text | required, ≤500 |
 | | `sys_*` | platform | trigger-managed |
+| `reports.photo` | `id` PK | bigint | from `core.seq_id` |
+| | `report_id` | bigint | required, FK → report |
+| | `kind` | text | required; BEFORE or AFTER |
+| | `content` | bytea | required, JPEG |
+| | `sys_*` | platform | trigger-managed |
+| `reports.message` | `id` PK | bigint | from `core.seq_id` |
+| | `report_id` | bigint | required, FK → report |
+| | `kind` | text | required; UPDATE, REMINDER or REMAINS |
+| | `text` | text | ≤500, required except for REMINDER |
+| | `expected_on` | date | optional |
+| | `sys_*` | platform | trigger-managed |
 | `reports.signing` | `id` PK | bigint | from `core.seq_id` |
 | | `token` | text | required, unique; random, used by the form to ask for the result |
 | | `session_id` | text | required; the Smart-ID session |
@@ -163,8 +236,9 @@ and why. In this course nothing is delivered to a real authority.
 | | `report_id` | bigint | FK → report; set when SIGNED |
 | | `sys_*` | platform | trigger-managed |
 
-Allowed status changes are RECEIVED → IN_PROGRESS, IN_PROGRESS → RESOLVED and
-RECEIVED → REJECTED. Any other change is refused.
+Allowed status changes are RECEIVED → ACCEPTED, RECEIVED or ACCEPTED → IN_PROGRESS,
+IN_PROGRESS → RESOLVED, RECEIVED or ACCEPTED → REJECTED, and RESOLVED → ACCEPTED by
+the sender. Any other change is refused.
 
 `status_change` records **post-creation transitions only**. Creating a report
 writes no history row, because the creation time and user live on the report's
@@ -192,8 +266,17 @@ The database repeats the service validation with CHECK constraints on
 | `POST /api/reports/{referenceNumber}/forward` | coordinator; send to another recipient (`kind`, `name`, `reason`) | 400 · 403 · 404 · 409 closed or already there |
 | `GET /api/reports/{referenceNumber}/forwardings` | where it was forwarded, oldest first; user name only for a coordinator | 404 |
 | `GET /api/reports/xroad-status` | coordinator; live call to the X-Road test environment, a failure is shown as not available | 403 |
-| `POST /api/reports/{referenceNumber}/status` | coordinator; change status (`toStatus`, `reason`, `falseReport`) | 400 missing reason · 403 · 404 · 409 change not allowed |
+| `POST /api/reports/{referenceNumber}/status` | coordinator; change status (`toStatus`, `reason`, `falseReport`, `publish`) | 400 missing reason · 403 · 404 · 409 change not allowed |
 | `GET /api/reports/{referenceNumber}/history` | coordinator; status changes, oldest first | 403 · 404 |
+| `POST /api/reports/{referenceNumber}/photos` | add a photo (multipart `file`); the sender with `X-Submission-Key`, or the coordinator a photo of the result | 400 not a picture, too large or a sixth one · 404 |
+| `POST /api/reports/{referenceNumber}/updates` | coordinator; message with optional day | 400 · 403 · 404 · 409 closed |
+| `GET /api/reports/{referenceNumber}/messages` | updates, reminders and reopenings; user name only for a coordinator | 404 |
+| `POST /api/reports/{referenceNumber}/reminders` | sender; remind | 404 not the sender · 409 too early or closed |
+| `POST /api/reports/{referenceNumber}/remains` | sender; the problem remains (`text`) | 400 · 404 · 409 |
+| `GET /api/reports/me` | points and level of the device `X-Device-Id` | 400 |
+| `GET /api/reports/map/{id}` and `/map/{id}/photos/{photoId}` | one point, text and photos once published | 404 |
+| `GET /api/reports/{referenceNumber}/photos` and `/photos/{id}` | coordinator or sender | 403 · 404 |
+| `GET /api/reports/map` | points inside `west`, `south`, `east`, `north`, optional `categoryCode`, at most 500 | 400 |
 | `GET /api/reports/categories` | reference list with responsible units | none |
 
 Every error is `application/problem+json` via `ApiErrorHandler`. All endpoints
@@ -282,7 +365,7 @@ The list without `sort` shows the longest waiting report first. Sort keys are
     with Retry-After and nothing is stored.
 15. **A device is limited by its trust level.** Given a new device with one report, when
     it sends another within 10 minutes, then the answer is 429. After 3 resolved reports
-    the limit is 1 in 5 minutes.
+    (90 points) the limit is 1 in 5 minutes.
 16. **A false report resets trust.** Given a device at level 1, when a coordinator rejects
     one of its reports as false, then it is at level 0. A normal rejection changes nothing.
 17. **Changing the device does not remove every limit.** Given 20 unsigned reports from
@@ -309,6 +392,26 @@ The list without `sort` shows the longest waiting report first. Sort keys are
 25. **X-Road is used and its failure is handled.** Given the xroad mode, when a report is
     submitted, then the register is asked with the X-Road client and service identifiers. A
     fault leaves the address unverified. The coordinator sees whether the test environment answers.
+26. **There are nine categories.** Given the category list, then it has the nine codes with
+    their units, and a report in OTHER is decided by the coordinator.
+27. **A photo is cleaned.** Given a JPEG with GPS data, when it is added, then the stored
+    picture has no such data. A text file named .jpg is refused (400), as is a sixth photo.
+28. **Text and photos are public only after publication.** Given a report with a photo, when
+    a resident opens its point on the map, then there is no text and no photo. After the
+    coordinator has published it they are there, without reference number and sender.
+29. **The public map shows no personal data.** Given reports, when the map is read, then a
+    point has only category, status, municipality, date and the rounded place. PUBLIC_ORDER is
+    not there and a rejected report leaves after 3 days.
+30. **The resident gets steps, updates and a date.** Given a new report, then 15 days are left
+    to respond. After the coordinator's first reaction the counter is gone, and an update
+    shows its text and day, not the user name.
+31. **The sender can remind.** Given a report of 4 days, when its sender reminds, then the
+    coordinator sees one reminder. Again within 3 days is 409, another person gets 404.
+32. **The sender can say that the problem remains.** Given a resolved report, when its sender
+    says so with a text, then it is ACCEPTED again and the history shows it. After 30 days it is 409.
+33. **Points are given for confirmed and solved reports.** Given a device, when its report with
+    a photo is accepted, then it has 15 points, when solved 35, when reopened 15, and after a
+    false report 0.
 
 ## Decisions
 

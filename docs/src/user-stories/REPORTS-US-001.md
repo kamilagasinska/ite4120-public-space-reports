@@ -14,11 +14,11 @@ This mirrors the municipal public space maintenance process: a resident's notice
 
 Reporting is possible without giving a name. Contact details are optional and used only to follow up on that report. A resident may report as a guest, with a device identifier, or signed with Smart-ID, and gets a higher limit for being identifiable. No personal identification code (isikukood) is stored.
 
-Out of scope: photos and file uploads, notifications by email or SMS, problem types other than road damage and litter, and anything outside Estonia.
+Out of scope: video and audio, notifications by email or SMS, and anything outside Estonia.
 
 ## Acceptance criteria
 
-- A resident can submit a report with a category (road damage or litter), an address, an optional map point and a description.
+- A resident can submit a report with one of nine categories, an address, an optional map point and a description.
 - A report without a category or an address is refused, with a message saying which field is missing.
 - A description shorter than 10 characters is refused.
 - Each accepted report gets a unique reference number and the status "Received".
@@ -30,3 +30,5 @@ Out of scope: photos and file uploads, notifications by email or SMS, problem ty
 - A resident over the limit is told when to try again or to sign.
 - The place can be taken from the device's location with the resident's permission, and corrected.
 - A resident can see the reason when a report was rejected.
+- A resident can add up to 5 photos, which only the coordinator sees.
+- A resident can see reports of others on a map without any personal data.
