@@ -300,7 +300,8 @@ resident must never be blocked from reporting a hazard because another system is
 down, and the coordinator can check the address by hand.
 
 The address is **verified** when the register returns exactly one address for it.
-Several matches are ambiguous and leave the report unverified. The lookup waits at
+Several matches are ambiguous and leave the report unverified,
+unless the address is the one the register gave for the map point. The lookup waits at
 most 3 seconds. The transport is configuration (`reports.address-register.mode`,
 `http` or `xroad`). Locally the mode is `xroad`. The application speaks the X-Road message
 protocol for REST to an imitated security server, which passes the question to the public
