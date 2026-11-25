@@ -8,7 +8,9 @@ Routes are found automatically from `frontend/src/pages/<folder>/routes.tsx`, so
 | --- | --- | --- | --- |
 | Resident on the phone | Jevgeni | `frontend/src/pages/reports/` | `reports-ui-resident` |
 | Coordinator on the web | Kamila (proposal) | `frontend/src/pages/reports-coordinator/` | `reports-ui-coordinator` |
-| Public map and status lookup | third member (proposal) | `frontend/src/pages/reports-map/` | `reports-ui-map` |
+| Public map and status lookup | Duc (proposal) | `frontend/src/pages/reports-map/` | `reports-ui-map` |
+
+To run without installing anything see [cloud.md](cloud.md).
 
 Everyone commits with the own GitHub account, writes the own diary and must be able to
 explain the own part at the defence.
@@ -50,3 +52,22 @@ explain the own part at the defence.
 > reason, "No report with this reference number" on 404. Other inputs are @helex/ui or antd.
 > Must work at 360 px width. Texts in English. Do not change other files except package.json
 > for Leaflet. Explain every choice to me in simple words.
+
+## More parts, writing and checking
+
+These need no installation. A file can be edited on github.com with the pencil. Choose
+"Create a new branch and start a pull request" at the end, then the change counts as yours.
+
+| Part | Result | Suggested for |
+| --- | --- | --- |
+| User stories | `REPORTS-US-003` public map for any resident, `REPORTS-US-004` identity and trust (guest, device, Smart-ID), `REPORTS-US-005` forwarding by the coordinator, from `docs/_templates/user-story.md`, and links in `SUMMARY.md` | Kamila |
+| Specification | read REPORTS.01 as a stranger, write every unclear place as a comment in a pull request, then fix the agreed ones. Add "Accessibility" and "Personal data" sections | Duc |
+| Interface review | try every screen on a phone and by keyboard, list what is hard, fix texts | Duc |
+| Manual test protocol | `docs/test-protocol.md`, each business test by hand in Swagger with date and result | Kamila |
+| Slides | 10 minutes, everyone presents the own part | all |
+| Peer reviews | two other groups, after the defence, by 11.12 | all |
+| Diary | `docs/diary-<name>.md`, own words | each |
+
+How it counts. The commit must be made from the own account, GitHub shows it under
+Insights, Contributors and in the pull request. A review also counts as visible work, so
+please review each other's pull requests with at least one real question.
