@@ -66,7 +66,7 @@ public class HttpSmartIdAdapter implements SmartIdAdapter {
     }
 
     @Override
-    public Result poll(String sessionId, String document, byte[] text) {
+    public Poll poll(String sessionId, String document, byte[] text) {
         SmartIdSessionStatus wire;
         try {
             wire = json.readValue(send(request("/session/" + sessionId + "?timeoutMs=1000").GET()),
@@ -75,24 +75,24 @@ public class HttpSmartIdAdapter implements SmartIdAdapter {
             throw new SmartIdException("Smart-ID is not available, try again", e);
         }
         if (wire == null || !"COMPLETE".equals(wire.state())) {
-            return Result.RUNNING;
+            return new Poll(Result.RUNNING, null);
         }
         String end = wire.result() == null ? "" : String.valueOf(wire.result().endResult());
         if (end.startsWith("USER_REFUSED")) {
-            return Result.REFUSED;
+            return new Poll(Result.REFUSED, null);
         }
         if (end.equals("TIMEOUT")) {
-            return Result.EXPIRED;
+            return new Poll(Result.EXPIRED, null);
         }
         if (!end.equals("OK")) {
-            return Result.FAILED;
+            return new Poll(Result.FAILED, null);
         }
         String problem = check.problem(wire, document, text);
         if (problem != null) {
             log.warn("Smart-ID signature refused: {}", problem);
-            return Result.FAILED;
+            return new Poll(Result.FAILED, null);
         }
-        return Result.SIGNED;
+        return new Poll(Result.SIGNED, check.name(wire));
     }
 
     @Override

@@ -28,7 +28,8 @@ public class DialogueRepository extends BaseRepository {
                    or (r.status = 'RESOLVED' and last.at > clock_timestamp() - interval '30 days'))
             """;
     private static final String POINT = "select r.id, round(r.latitude, 4) as latitude, round(r.longitude, 4) as longitude, "
-            + "r.category_code, r.status, r.municipality_name, r.sys_created_at::date as submitted_on ";
+            + "r.category_code, r.status, r.municipality_name, r.sys_created_at::date as submitted_on, "
+            + "(select 1 + count(*) from reports.sighting g where g.report_id = r.id and g.sys_status = 'A') as seen_by ";
 
     private final PgBeanProcessor messageBp = new PgBeanProcessor(Message.class);
 
@@ -73,9 +74,18 @@ public class DialogueRepository extends BaseRepository {
         return found.isEmpty() ? null : found.getFirst();
     }
 
+    /** Counts a device once, and not the one that sent the report. */
+    public void addSighting(Long reportId, String keyHash) {
+        jdbcTemplate.update("""
+                insert into reports.sighting (report_id, key_hash)
+                select r.id, ? from reports.report r left join reports.reporter p on p.id = r.reporter_id
+                 where r.id = ? and (p.key_hash is null or p.key_hash <> ?)
+                on conflict do nothing""", keyHash, reportId, keyHash);
+    }
+
     private static MapPoint point(ResultSet rs) throws SQLException {
         return new MapPoint(rs.getLong("id"), rs.getBigDecimal("latitude"), rs.getBigDecimal("longitude"),
                 rs.getString("category_code"), rs.getString("status"), rs.getString("municipality_name"),
-                rs.getObject("submitted_on", LocalDate.class));
+                rs.getObject("submitted_on", LocalDate.class), rs.getInt("seen_by"));
     }
 }

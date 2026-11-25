@@ -76,6 +76,11 @@ public class ReporterRepository extends BaseRepository {
         return n == null ? 0 : n;
     }
 
+    public Reporter load(Long id) {
+        return jdbcTemplate.queryForObject("select kind, key_hash from reports.reporter where id = ?",
+                (rs, i) -> new Reporter(Reporter.Kind.valueOf(rs.getString(1)), rs.getString(2)), id);
+    }
+
     /** The id of the reporter, stored on first use. Call under the reporter's lock. */
     public Long touch(Reporter reporter) {
         List<Long> ids = jdbcTemplate.queryForList(

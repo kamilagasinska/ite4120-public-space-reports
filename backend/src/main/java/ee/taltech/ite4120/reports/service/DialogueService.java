@@ -138,6 +138,13 @@ public class DialogueService {
         return found(published(reports.load(id), point) ? photos.load(id, photoId) : null);
     }
 
+    /** Gives no points and no priority, so there is nothing to gain by inventing devices. */
+    public MapPoint sight(Long id, String deviceHash) {
+        visible(id);
+        repository.addSighting(id, deviceHash);
+        return visible(id);
+    }
+
     private static boolean published(Report report, MapPoint point) {
         return Boolean.TRUE.equals(report.getPublished()) && !"REJECTED".equals(point.status());
     }

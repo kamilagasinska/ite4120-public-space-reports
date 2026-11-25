@@ -2,6 +2,7 @@ package ee.taltech.ite4120.reports.smartid;
 
 import ee.taltech.ite4120.reports.smartid.http.wire.SmartIdSessionStatus;
 import java.io.ByteArrayInputStream;
+import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
 import java.security.Signature;
 import java.security.cert.CertificateFactory;
@@ -42,8 +43,7 @@ public class SignatureCheck {
             return "another document";
         }
         try {
-            X509Certificate cert = (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(
-                    new ByteArrayInputStream(Base64.getDecoder().decode(s.cert().value())));
+            X509Certificate cert = certificate(s);
             cert.checkValidity();
             if (!trustedIssuer.equals(attribute(cert.getIssuerX500Principal(), "CN"))) {
                 return "unknown issuer";
@@ -61,9 +61,35 @@ public class SignatureCheck {
         }
     }
 
+    /** The person's name in the certificate, or null. */
+    public String name(SmartIdSessionStatus s) {
+        try {
+            X500Principal subject = certificate(s).getSubjectX500Principal();
+            String given = attribute(subject, "GIVENNAME");
+            String family = attribute(subject, "SURNAME");
+            return given == null || family == null ? null : given + " " + family;
+        } catch (GeneralSecurityException | InvalidNameException | IllegalArgumentException e) {
+            return null;
+        }
+    }
+
+    private static X509Certificate certificate(SmartIdSessionStatus s) throws GeneralSecurityException {
+        return (X509Certificate) CertificateFactory.getInstance("X.509").generateCertificate(
+                new ByteArrayInputStream(Base64.getDecoder().decode(s.cert().value())));
+    }
+
     private static String attribute(X500Principal name, String type) throws InvalidNameException {
-        return new LdapName(name.getName(X500Principal.RFC2253, Map.of("2.5.4.5", "SERIALNUMBER"))).getRdns().stream()
+        return new LdapName(name.getName(X500Principal.RFC2253, Map.of("2.5.4.5", "SERIALNUMBER",
+                        "2.5.4.42", "GIVENNAME", "2.5.4.4", "SURNAME"))).getRdns().stream()
                 .filter(r -> r.getType().equalsIgnoreCase(type))
-                .map(r -> String.valueOf(r.getValue())).findFirst().orElse(null);
+                .map(r -> text(r.getValue())).findFirst().orElse(null);
+    }
+
+    /** A named attribute may still come as its raw encoding. */
+    private static String text(Object value) {
+        if (value instanceof byte[] der && der.length > 2 && der[1] >= 0) {
+            return new String(der, 2, der[1], StandardCharsets.UTF_8);
+        }
+        return String.valueOf(value);
     }
 }

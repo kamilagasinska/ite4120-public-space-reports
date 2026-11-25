@@ -86,6 +86,8 @@ Checking the certificate chain and revocation is left for production.
 The certificate holds a personal code, so it is discarded after the check and only
 the digest, the time and the keyed hash are kept. The demo offers a fixed list of
 test persons. Nobody types a real personal code or PIN into this application.
+The name in the certificate is told once to the signing device, which shows it in the
+profile. The server does not store it.
 
 **Failure policy** for Smart-ID is **fail closed**. If it is unreachable or the person
 refuses, nothing is stored as signed. The form keeps its content and offers to send as
@@ -228,6 +230,10 @@ and why. In this course nothing is delivered to a real authority.
 | | `text` | text | ≤500, required except for REMINDER |
 | | `expected_on` | date | optional |
 | | `sys_*` | platform | trigger-managed |
+| `reports.sighting` | `id` PK | bigint | from `core.seq_id` |
+| | `report_id` | bigint | required, FK → report |
+| | `key_hash` | text | required, unique per report among active rows |
+| | `sys_*` | platform | trigger-managed |
 | `reports.signing` | `id` PK | bigint | from `core.seq_id` |
 | | `token` | text | required, unique; random, used by the form to ask for the result |
 | | `session_id` | text | required; the Smart-ID session |
@@ -273,6 +279,7 @@ The database repeats the service validation with CHECK constraints on
 | `GET /api/reports/{referenceNumber}/messages` | updates, reminders and reopenings; user name only for a coordinator | 404 |
 | `POST /api/reports/{referenceNumber}/reminders` | sender; remind | 404 not the sender · 409 too early or closed |
 | `POST /api/reports/{referenceNumber}/remains` | sender; the problem remains (`text`) | 400 · 404 · 409 |
+| `POST /api/reports/map/{id}/sightings` | I see it too, counted once per device `X-Device-Id`; no points, no priority | 400 · 404 |
 | `GET /api/reports/me` | points and level of the device `X-Device-Id` | 400 |
 | `GET /api/reports/map/{id}` and `/map/{id}/photos/{photoId}` | one point, text and photos once published | 404 |
 | `GET /api/reports/{referenceNumber}/photos` and `/photos/{id}` | coordinator or sender | 403 · 404 |
@@ -324,6 +331,12 @@ The list without `sort` shows the longest waiting report first. Sort keys are
 | | status change | `Select` + `Input.TextArea` + `AppButtonPrimary` | `Select` offers only allowed next statuses; reason required for Rejected; 400/409 text in a notification |
 | | history | `AppCard` | from, to, reason, when, by whom |
 | | metadata | `ResourceForm.sidebar` | created and modified at and by, version |
+
+**Languages.** The phone pages are in English, Estonian, Russian and Ukrainian, with
+English first. The translations need a check by native speakers. The coordinator pages
+are in English. Six pictures lead to the nine categories. Nature covers TREES and
+DEAD_ANIMAL, Graffiti and damage is VANDALISM, Danger and other covers
+DANGEROUS_OBJECT, PUBLIC_ORDER and OTHER.
 
 ## Business tests
 
@@ -412,6 +425,8 @@ The list without `sort` shows the longest waiting report first. Sort keys are
 33. **Points are given for confirmed and solved reports.** Given a device, when its report with
     a photo is accepted, then it has 15 points, when solved 35, when reopened 15, and after a
     false report 0.
+34. **Others can say that they see it too.** Given a report on the map, when another device says
+    so, then it is seen by 2. The same device again and the sender change nothing.
 
 ## Decisions
 
