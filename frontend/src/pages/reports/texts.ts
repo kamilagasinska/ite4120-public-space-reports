@@ -292,6 +292,35 @@ const TEXTS: Record<string, string[]> = {
   "Signed in on this phone": ["Sisse logitud selles telefonis","Вход на этом телефоне","Вхід на цьому телефоні"],
   "Device number on": ["Seadme number on kasutusel","Номер устройства включён","Номер пристрою ввімкнено"],
   "Guest": ["Külaline","Гость","Гість"],
+  "Choose photos": ["Vali fotod", "Выбрать фото", "Вибрати фото"],
+  "Add photos": ["Lisa fotosid", "Добавь фото", "Додай фото"],
+  "Sent from this browser, newest first": ["Saadetud sellest brauserist, uuemad ees", "Отправлено из этого браузера, новые сверху", "Надіслано з цього браузера, нові зверху"],
+  "Reports you send from this browser appear here.": ["Siin on teated, mille saadad sellest brauserist.", "Здесь появятся сообщения, отправленные из этого браузера.", "Тут з'являться повідомлення, надіслані з цього браузера."],
+  "Sign in once and stay signed in on this computer.": ["Logi sisse üks kord ja jää selles arvutis sisselogituks.", "Войди один раз и оставайся в системе на этом компьютере.", "Увійди один раз і залишайся в системі на цьому комп'ютері."],
+  "The computer did not share its location": ["Arvuti ei jaganud asukohta", "Компьютер не передал место", "Комп'ютер не передав місце"],
+  "Type the address, or allow location in the browser settings.": ["Kirjuta aadress või luba asukoht brauseri seadetes.", "Напиши адрес или разреши место в настройках браузера.", "Напиши адресу або дозволь місце в налаштуваннях браузера."],
+  "Signed in on this computer": ["Sisse logitud selles arvutis", "Вход на этом компьютере", "Вхід на цьому комп'ютері"],
+  "Choose a picture to start.": ["Alusta pildi valimisega.", "Выбери картинку, чтобы начать.", "Вибери картинку, щоб почати."],
+  "Choose a pin to see the report.": ["Vali nõel, et näha teadet.", "Выбери точку, чтобы увидеть сообщение.", "Вибери точку, щоб побачити повідомлення."],
+  "Reference number, press to copy": ["Teate number, vajuta kopeerimiseks", "Номер сообщения, нажми, чтобы скопировать", "Номер повідомлення, натисни, щоб скопіювати"],
+  "Reports near you": ["Teated sinu lähedal", "Сообщения рядом", "Повідомлення поруч"],
+  "Open the map": ["Ava kaart", "Открыть карту", "Відкрити мапу"],
+  "Send": ["Saada", "Отправить", "Надіслати"],
+};
+
+/** On a computer the same texts must not speak of a phone or of tapping. */
+export const ON_WEB: Record<string, string> = {
+  'Choose from the phone': 'Choose photos',
+  'Take a photo': 'Add photos',
+  'Sent from this phone, newest first': 'Sent from this browser, newest first',
+  'Reports you send from this phone appear here.': 'Reports you send from this browser appear here.',
+  'Sign in once and stay signed in on this phone.': 'Sign in once and stay signed in on this computer.',
+  'The phone did not share its location': 'The computer did not share its location',
+  'Type the address, or allow location in the phone settings.': 'Type the address, or allow location in the browser settings.',
+  'Signed in on this phone': 'Signed in on this computer',
+  'Tap a picture to start.': 'Choose a picture to start.',
+  'Tap a pin to see the report.': 'Choose a pin to see the report.',
+  'Reference number, tap to copy': 'Reference number, press to copy',
 };
 
 const COLUMN = { et: 0, ru: 1, uk: 2 } as const;

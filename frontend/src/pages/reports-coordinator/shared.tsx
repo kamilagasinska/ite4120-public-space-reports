@@ -10,6 +10,9 @@ export const STATUS: Record<ReportStatus, { text: string; color: string }> = {
   REJECTED: { text: 'Rejected', color: 'red' },
 };
 
+/** The colours of the pins on the map. */
+export const DOT: Record<ReportStatus, string> = { RECEIVED: '#f2c230', ACCEPTED: '#2468b0', IN_PROGRESS: '#c45a0a', RESOLVED: '#277257', REJECTED: '#b3203a' };
+
 /** The same changes the server allows. The server decides, this only hides the impossible ones. */
 export const NEXT: Record<ReportStatus, ReportStatus[]> = {
   RECEIVED: ['ACCEPTED', 'IN_PROGRESS', 'REJECTED'],
