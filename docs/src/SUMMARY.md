@@ -14,3 +14,4 @@
 - [User story · REPORTS-US-005](user-stories/REPORTS-US-005.md)
 - [Specification · ANIMALS.01](specifications/ANIMALS.01-animal-register.md)
 - [Specification · REPORTS.01](specifications/REPORTS.01-public-space-reports.md)
+- [Specification · REPORTS.02](specifications/REPORTS.02-accessibility-and-data.md)
