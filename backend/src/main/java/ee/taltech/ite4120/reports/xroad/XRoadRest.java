@@ -19,7 +19,8 @@ public class XRoadRest {
         }
     }
 
-    public record Answer(String body, String messageId) {}
+    /** The id is ours and comes back, the hash of the request is made by the security server. */
+    public record Answer(String body, String messageId, String requestHash) {}
 
     private final HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(2)).build();
     private final String securityServer;
@@ -49,7 +50,8 @@ public class XRoadRest {
             if (r.statusCode() != 200) {
                 throw new XRoadException("HTTP " + r.statusCode(), null);
             }
-            return new Answer(r.body(), r.headers().firstValue("X-Road-Id").orElse(null));
+            return new Answer(r.body(), r.headers().firstValue("X-Road-Id").orElse(null),
+                    r.headers().firstValue("X-Road-Request-Hash").orElse(null));
         } catch (IOException e) {
             throw new XRoadException("security server unreachable", e);
         } catch (InterruptedException e) {

@@ -143,5 +143,5 @@ export const reportsApi = {
   update: (referenceNumber: string, text: string, expectedOn?: string) => post(`/${ref(referenceNumber)}/updates`, { text, expectedOn }),
   forward: (referenceNumber: string, body: { kind: string; name?: string; reason: string }): Promise<Report> =>
     post(`/${ref(referenceNumber)}/forward`, body).then((r) => r.json()),
-  xroadStatus: () => get<{ available: boolean; securityServer: string; service: string; messageId?: string; detail?: string }>('/xroad-status'),
+  xroadStatus: () => get<{ available: boolean; securityServer: string; service: string; messageId?: string; requestHash?: string; services?: string[]; detail?: string }>('/xroad-status'),
 };
