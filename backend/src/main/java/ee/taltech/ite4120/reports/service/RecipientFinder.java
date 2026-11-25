@@ -16,6 +16,7 @@ public class RecipientFinder {
 
     private static final Logger log = LoggerFactory.getLogger(RecipientFinder.class);
     private static final String ROAD_DAMAGE = "ROAD_DAMAGE";
+    private static final String OTHER = "OTHER";
 
     private final RoadMapAdapter roads;
 
@@ -24,6 +25,9 @@ public class RecipientFinder {
     }
 
     public Recipient find(Category category, String municipalityName, BigDecimal latitude, BigDecimal longitude) {
+        if (OTHER.equals(category.getCode())) {
+            return Recipient.UNDETERMINED;
+        }
         if (ROAD_DAMAGE.equals(category.getCode()) && latitude != null) {
             switch (owner(latitude, longitude)) {
                 case STATE:

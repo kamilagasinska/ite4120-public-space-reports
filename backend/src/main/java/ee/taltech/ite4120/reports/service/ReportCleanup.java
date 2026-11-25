@@ -22,6 +22,7 @@ public class ReportCleanup {
     public void clean() {
         repository.clearOldIpHashes();
         repository.forgetOldDevices();
+        repository.deleteOldPhotos();
         repository.expireSignings();
     }
 }

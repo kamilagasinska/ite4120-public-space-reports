@@ -1,6 +1,7 @@
 package ee.taltech.ite4120.reports.service;
 
 import ee.taltech.ite4120.reports.model.Reporter;
+import ee.taltech.ite4120.reports.model.Standing;
 import ee.taltech.ite4120.reports.repository.ReporterRepository;
 import ee.taltech.ite4120.reports.repository.ReporterRepository.Usage;
 import org.springframework.stereotype.Component;
@@ -12,11 +13,11 @@ public class ReportLimits {
     private static final long DAY = 24 * 60 * 60;
     private static final int GUEST_PER_DAY = 1;
     private static final int UNSIGNED_PER_IP_PER_DAY = 20;
-    private static final int[] RESOLVED_FOR_LEVEL = {0, 3, 10};
-    private static final int[] DEVICE_GAP_SECONDS = {600, 300, 120};
-    private static final int[] DEVICE_PER_DAY = {5, 10, 20};
+    private static final int[] POINTS_FOR_LEVEL = {0, 50, 150, 300};
+    private static final int[] DEVICE_GAP_SECONDS = {600, 300, 120, 60};
+    private static final int[] DEVICE_PER_DAY = {5, 10, 20, 30};
     private static final int SIGNED_GAP_SECONDS = 60;
-    private static final int[] SIGNED_PER_DAY = {50, 100, 200};
+    private static final int[] SIGNED_PER_DAY = {50, 100, 200, 300};
 
     private final ReporterRepository repository;
 
@@ -47,7 +48,7 @@ public class ReportLimits {
         }
         if (reporter != null) {
             Usage usage = repository.usage(reporter);
-            int level = level(repository.resolvedSinceFalseReport(reporter));
+            int level = level(repository.points(reporter));
             boolean signed = reporter.kind() == Reporter.Kind.SIGNED;
             int gap = signed ? SIGNED_GAP_SECONDS : DEVICE_GAP_SECONDS[level];
             if (usage.secondsSinceLast() != null && usage.secondsSinceLast() < gap) {
@@ -57,9 +58,15 @@ public class ReportLimits {
         }
     }
 
-    static int level(int resolved) {
+    public Standing standing(Reporter reporter) {
+        int points = repository.points(reporter);
+        int level = level(points);
+        return new Standing(points, level, level + 1 < POINTS_FOR_LEVEL.length ? POINTS_FOR_LEVEL[level + 1] : null);
+    }
+
+    static int level(int points) {
         int level = 0;
-        while (level + 1 < RESOLVED_FOR_LEVEL.length && resolved >= RESOLVED_FOR_LEVEL[level + 1]) {
+        while (level + 1 < POINTS_FOR_LEVEL.length && points >= POINTS_FOR_LEVEL[level + 1]) {
             level++;
         }
         return level;

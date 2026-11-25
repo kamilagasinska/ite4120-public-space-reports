@@ -18,6 +18,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 /**
@@ -65,6 +66,14 @@ public class ApiErrorHandler {
         String name = e instanceof MethodArgumentTypeMismatchException m ? m.getName()
                 : ((MissingServletRequestParameterException) e).getParameterName();
         pd.setDetail(name + " is missing or not valid");
+        return pd;
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ProblemDetail tooLarge(MaxUploadSizeExceededException e) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setTitle("Invalid request");
+        pd.setDetail("a file may have at most 8 MB");
         return pd;
     }
 

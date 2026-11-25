@@ -6,6 +6,8 @@ import jakarta.validation.constraints.Size;
 /** The requested status change. */
 public class StatusChangeRequest {
 
+    /** Shows the text and the photos on the public map. Never with REJECTED. */
+    private boolean publish;
     /** Only with REJECTED, resets the trust of the sender. */
     private boolean falseReport;
     @NotBlank
@@ -19,4 +21,6 @@ public class StatusChangeRequest {
     public void setReason(String reason) { this.reason = reason; }
     public boolean isFalseReport() { return falseReport; }
     public void setFalseReport(boolean falseReport) { this.falseReport = falseReport; }
+    public boolean isPublish() { return publish; }
+    public void setPublish(boolean publish) { this.publish = publish; }
 }

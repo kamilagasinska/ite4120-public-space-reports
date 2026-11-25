@@ -21,10 +21,19 @@ public class ReportRepository extends BaseRepository {
     private static final String DAYS_OPEN =
             "floor(extract(epoch from (current_timestamp - r.sys_created_at)) / 86400)::int";
 
+    /** The coordinator has reacted in some way. */
+    private static final String ANSWERED = "(exists (select 1 from reports.status_change s where s.report_id = r.id "
+            + "and s.sys_status = 'A') or exists (select 1 from reports.message m where m.report_id = r.id "
+            + "and m.kind = 'UPDATE' and m.sys_status = 'A'))";
+
     private static final String SELECT = "select r.*, r.sys_created_at as submitted_at, "
             + DAYS_OPEN + " as days_open, c.name as category_name, c.responsible_unit, "
             + "(select s.reason from reports.status_change s where s.report_id = r.id and s.to_status = 'REJECTED' "
-            + "and s.sys_status = 'A' order by s.id desc limit 1) as rejection_reason "
+            + "and s.sys_status = 'A' order by s.id desc limit 1) as rejection_reason, "
+            + "(select count(*)::int from reports.message m where m.report_id = r.id and m.kind = 'REMINDER' "
+            + "and m.sys_status = 'A') as reminders, "
+            + "case when not " + ANSWERED + " then (r.sys_created_at + interval '15 days')::date end as respond_by, "
+            + "case when not " + ANSWERED + " then 15 - " + DAYS_OPEN + " end as days_to_respond "
             + "from reports.report r join reports.category c on c.code = r.category_code ";
 
     private static final Map<String, String> SORT = Map.of(
@@ -42,6 +51,14 @@ public class ReportRepository extends BaseRepository {
 
     public Report loadByReferenceNumber(String referenceNumber) {
         return getBean(SELECT + "where r.reference_number = ? and r.sys_status = 'A'", bp, referenceNumber);
+    }
+
+    public Report load(Long id) {
+        return getBean(SELECT + "where r.id = ? and r.sys_status = 'A'", bp, id);
+    }
+
+    public void setPublished(Long id, boolean published) {
+        jdbcTemplate.update("update reports.report set published = ? where id = ? and published <> ?", published, id, published);
     }
 
     public Report loadBySubmissionKey(String key) {
@@ -134,7 +151,7 @@ public class ReportRepository extends BaseRepository {
     /** Changes the recipient only if nobody else did and the report is still open. */
     public boolean updateRecipient(Report r, String kind, String name) {
         return jdbcTemplate.update("update reports.report set recipient_kind = ?, recipient_name = ? "
-                + "where id = ? and recipient_name = ? and status in ('RECEIVED', 'IN_PROGRESS') and sys_status = 'A'",
+                + "where id = ? and recipient_name = ? and status in ('RECEIVED', 'ACCEPTED', 'IN_PROGRESS') and sys_status = 'A'",
                 kind, name, r.getId(), r.getRecipientName()) == 1;
     }
 

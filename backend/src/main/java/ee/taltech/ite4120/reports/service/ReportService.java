@@ -11,6 +11,7 @@ import ee.taltech.ite4120.reports.model.Recipient;
 import ee.taltech.ite4120.reports.model.Report;
 import ee.taltech.ite4120.reports.model.ReportStatus;
 import ee.taltech.ite4120.reports.model.Reporter;
+import ee.taltech.ite4120.reports.model.Standing;
 import ee.taltech.ite4120.reports.model.StatusChange;
 import ee.taltech.ite4120.reports.repository.ReportRepository;
 import ee.taltech.ite4120.reports.repository.ReporterRepository;
@@ -101,6 +102,15 @@ public class ReportService {
         return repository.loadBySubmissionKey(report.getSubmissionKey());
     }
 
+    Standing standing(Reporter reporter) {
+        return limits.standing(reporter);
+    }
+
+    /** Points and trust level of a device. */
+    public Standing standing(String deviceId) {
+        return limits.standing(new Reporter(Reporter.Kind.DEVICE, hash.of("device", requireUuid(deviceId))));
+    }
+
     /** An early answer before signing starts. The binding check is made when the report is stored. */
     void checkLimit(Reporter reporter) {
         limits.check(reporter, null);
@@ -167,7 +177,8 @@ public class ReportService {
     }
 
     @Transactional
-    public Report changeStatus(String referenceNumber, String toStatus, String reason, boolean falseReport) {
+    public Report changeStatus(String referenceNumber, String toStatus, String reason, boolean falseReport,
+            boolean publish) {
         access.requireCoordinator();
         if (!ReportStatus.isKnown(toStatus)) {
             throw new ApiClientException("unknown toStatus: " + toStatus);
@@ -185,10 +196,16 @@ public class ReportService {
         if (falseReport && to != ReportStatus.REJECTED) {
             throw new ApiClientException("falseReport is only for a rejected report");
         }
+        if (publish && to == ReportStatus.REJECTED) {
+            throw new ApiClientException("a rejected report is not published");
+        }
         if (!repository.updateStatus(report.getId(), from.name(), to.name())) {
             throw new ConflictException("report", "status is no longer " + from + ", reload the report");
         }
         repository.insertStatusChange(report.getId(), from.name(), to.name(), cleanReason, falseReport);
+        if (publish || to == ReportStatus.REJECTED) {
+            repository.setPublished(report.getId(), publish);
+        }
         return require(report.getReferenceNumber());
     }
 
@@ -276,7 +293,7 @@ public class ReportService {
     }
 
     private static String requireUuid(String deviceId) {
-        if (!UUID_PATTERN.matcher(deviceId).matches()) {
+        if (deviceId == null || !UUID_PATTERN.matcher(deviceId).matches()) {
             throw new ApiClientException("X-Device-Id must be a UUID");
         }
         return deviceId.toLowerCase(Locale.ROOT);
