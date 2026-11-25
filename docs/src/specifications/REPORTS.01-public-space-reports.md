@@ -271,7 +271,7 @@ The database repeats the service validation with CHECK constraints on
 | `GET /api/reports/place` | municipality and address of a map point (`latitude`, `longitude`), with `categoryCode` also the recipient | 400 · 404 · 502 |
 | `POST /api/reports/{referenceNumber}/forward` | coordinator; send to another recipient (`kind`, `name`, `reason`) | 400 · 403 · 404 · 409 closed or already there |
 | `GET /api/reports/{referenceNumber}/forwardings` | where it was forwarded, oldest first; user name only for a coordinator | 404 |
-| `GET /api/reports/xroad-status` | coordinator; live call to the X-Road test environment, a failure is shown as not available | 403 |
+| `GET /api/reports/xroad-status` | coordinator; live call to the X-Road test environment, with the hash of the request made by the security server and the list of its services; a failure is shown as not available | 403 |
 | `POST /api/reports/{referenceNumber}/status` | coordinator; change status (`toStatus`, `reason`, `falseReport`, `publish`) | 400 missing reason · 403 · 404 · 409 change not allowed |
 | `GET /api/reports/{referenceNumber}/history` | coordinator; status changes, oldest first | 403 · 404 |
 | `POST /api/reports/{referenceNumber}/photos` | add a photo (multipart `file`); the sender with `X-Submission-Key`, or the coordinator a photo of the result | 400 not a picture, too large or a sixth one · 404 |
@@ -419,7 +419,9 @@ DANGEROUS_OBJECT, PUBLIC_ORDER and OTHER.
     reason, not the user name. Without a reason it is 400, a closed report 409, a resident 403.
 25. **X-Road is used and its failure is handled.** Given the xroad mode, when a report is
     submitted, then the register is asked with the X-Road client and service identifiers. A
-    fault leaves the address unverified. The coordinator sees whether the test environment answers.
+    fault leaves the address unverified. The coordinator sees whether the test environment
+    answers, with its request hash and services. An answer that is not a list of services counts
+    as no answer.
 26. **There are nine categories.** Given the category list, then it has the nine codes with
     their units, and a report in OTHER is decided by the coordinator.
 27. **A photo is cleaned.** Given a JPEG with GPS data, when it is added, then the stored

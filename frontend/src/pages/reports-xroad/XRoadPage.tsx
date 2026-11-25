@@ -33,6 +33,14 @@ export const XRoadPage = () => {
           <FieldItem label="Security server">{status.securityServer}</FieldItem>
           <FieldItem label="Service">{status.service}</FieldItem>
           {status.messageId && <FieldItem label="X-Road message id">{status.messageId}</FieldItem>}
+          {status.requestHash && (
+            <FieldItem label="Request hash, made by the security server"><span style={{ overflowWrap: 'anywhere' }}>{status.requestHash}</span></FieldItem>
+          )}
+          {status.services && (
+            <FieldItem label="Services it listed">
+              {status.services.length ? status.services.map((s) => <AppTag key={s}>{s}</AppTag>) : 'none'}
+            </FieldItem>
+          )}
           {!status.available && (
             <Alert type="warning" showIcon style={{ margin: '16px 0' }} title="X-Road is not available"
               description={`${status.detail ?? ''} Reports are still accepted, the address stays unverified.`} />
