@@ -18,5 +18,6 @@
   <include file="reports/db/changelog/reports/08-categories.sql"/>
   <include file="reports/db/changelog/reports/09-dialogue.sql"/>
   <include file="reports/db/changelog/reports/10-sighting.sql"/>
+  <include file="reports/db/changelog/reports/91-showcase.sql"/>
 
 </databaseChangeLog>

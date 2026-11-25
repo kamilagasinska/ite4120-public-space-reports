@@ -4,6 +4,10 @@
 .hio.app .plist { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
 .hio.app .plist .mine[aria-pressed=true] { outline: 3px solid var(--plum); }
 
+.hio.app .mocklab { align-self: flex-start; margin-bottom: 8px; }
+.hio.app .face svg { width: 56px; height: 56px; margin: 0; }
+.hio.app .bar .lng .ava { width: 34px; height: 34px; margin: 0 0 0 -8px; }
+
 @media (min-width: 960px) {
   .hio.app { max-width: none; padding: 0; }
   .hio.app .tabs, .hio.app .page.p-home .homebar, .hio.app .page.p-welcome .homebar { display: none; }
@@ -89,7 +93,8 @@
 
   /* my reports, one report, profile, sent */
   .hio.app .page.p-mine .scr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
-  .hio.app .page.p-mine :is(h1, .sub) { grid-column: 1 / -1; margin: 0 !important; }
+  .hio.app .page.p-mine :is(h1, .sub, .fl) { grid-column: 1 / -1; margin: 0 !important; }
+  .hio.app .page.p-mine .fl { padding: 2px 0; }
   .hio.app .page.p-mine .grow { display: none; }
   .hio.app .page.p-mine .mine { margin: 0 !important; }
   .hio.app .page.p-mine .scr > div:last-of-type { grid-column: 1 / -1; max-width: 320px; }

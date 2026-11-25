@@ -5,7 +5,8 @@ import {
   ApiProblem, reportsApi, type Forwarding, type MapDetail, type MapPoint, type Message, type NewReport,
   type PhotoInfo, type Report, type Standing,
 } from '../../reportsApi';
-import { art, avatar, icons, logo, medals } from './art';
+import { art, avatar, icons, logo, medals, people } from './art';
+import { demoHistory, isDemo } from './demoHistory';
 import './hio.css';
 import './web.css';
 import { MapView, SIGN, type Box, type Spot } from './MapView';
@@ -35,6 +36,9 @@ const useWide = () => useSyncExternalStore(
 const TABS = [['home', 'plus2', 'Report'], ['map', 'map', 'Map'], ['mine', 'list', 'My reports'], ['account', 'mask', 'Profile']] as const;
 /** The steps beside the form, with the screens that belong to each. */
 const PARTS: [string, string[]][] = [['Place', ['where', 'near']], ['Details', ['what', 'words']], ['Photos', ['photo']], ['Contact', ['contact']], ['Send', ['check', 'sign']]];
+
+const nameOf = (p: Person | null) => (p ? people[p.document]?.name ?? p.name ?? p.label : '');
+const faceOf = (p: Person | null) => (p && people[p.document]?.face) || avatar;
 
 const message = (e: unknown, t: (k: string) => string) =>
   e instanceof ApiProblem && e.status < 500 ? e.message : t('Something went wrong. Try again.');
@@ -74,8 +78,11 @@ export const ResidentApp = () => {
     if (needsDraft && !started.current) navigate('/spot/home', { replace: true });
   }, [needsDraft, navigate]);
 
+  /* A report without a person was sent by the device or by a guest. Older signed ones are not shown to others. */
+  const own = sent.filter((s) => (s.who ? way === 'signed' && s.who === person?.document : !s.signed));
+
   const refreshStanding = useCallback(() => {
-    const last = memory.sent().find((s) => s.signed && s.key.startsWith('signing-'));
+    const last = memory.sent().find((s) => s.who && s.who === memory.person()?.document && s.key.startsWith('signing-'));
     const ask = way === 'device' ? reportsApi.standing(memory.device())
       : way === 'signed' && last ? reportsApi.signing(last.key.slice('signing-'.length)).then((s) => s.standing ?? null)
         : Promise.resolve(null);
@@ -83,14 +90,16 @@ export const ResidentApp = () => {
   }, [way]);
   useEffect(() => { if (screen === 'home' || screen === 'account') refreshStanding(); }, [screen, refreshStanding]);
 
+  const remember = (list: SentReport[]) => { memory.setSent(list); setSent(list); };
   const choose = (w: Way, p: Person | null = null) => {
     if (w === 'guest') memory.forgetDevice();
     memory.setWay(w); setWay(w);
     memory.setPerson(p); setPerson(p);
     memory.setStanding(null); setStanding(null);
+    const real = memory.sent().filter((s) => !isDemo(s));
+    remember(p ? [...real, ...demoHistory(p.document)] : real);
     if (started.current) { change({ anonymous: false }); go('check'); } else go('home');
   };
-  const remember = (list: SentReport[]) => { memory.setSent(list); setSent(list); };
 
   const request = (d: Draft): NewReport => ({
     categoryCode: codeOf(d), address: d.address, latitude: d.spot?.latitude, longitude: d.spot?.longitude,
@@ -105,7 +114,7 @@ export const ResidentApp = () => {
       try { await reportsApi.addPhoto(ref, f, key); } catch { failed += 1; }
     }
     setPhotoNote(failed ? t('# of # photos could not be added.', failed, photos.length) : '');
-    remember([{ ref, key, cat: draft.cat, address: draft.address, at: new Date().toISOString(), signed: isSigned, photo: photos.length > failed },
+    remember([{ ref, key, cat: draft.cat, address: draft.address, at: new Date().toISOString(), signed: isSigned, photo: photos.length > failed, who: isSigned ? person?.document : undefined },
       ...sent.filter((s) => s.ref !== ref)]);
     started.current = false;
     setEditing(false);
@@ -284,7 +293,7 @@ export const ResidentApp = () => {
       break;
     }
     case 'mine':
-      body = <Mine {...ui} sent={sent} />;
+      body = <Mine {...ui} sent={own} />;
       break;
     case 'find':
       body = <Find {...ui} />;
@@ -296,15 +305,15 @@ export const ResidentApp = () => {
       body = <PublicMap {...ui} way={way} />;
       break;
     case 'account':
-      body = <Account {...ui} way={way} person={person} standing={standing} sent={sent} LangButton={LangButton}
-        onOut={() => { memory.setWay(null); setWay(null); memory.setPerson(null); setPerson(null); memory.setStanding(null); setStanding(null); started.current = false; go('welcome'); }} />;
+      body = <Account {...ui} way={way} person={person} standing={standing} sent={own} LangButton={LangButton}
+        onOut={() => { remember(memory.sent().filter((s) => !isDemo(s))); memory.setWay(null); setWay(null); memory.setPerson(null); setPerson(null); memory.setStanding(null); setStanding(null); started.current = false; go('welcome'); }} />;
       break;
     default:
       body = (
         <>
           <div className="homebar">
             {editing ? <button className="rb" aria-label={t('Back')} onClick={() => go('check')}><Icon name="back" /></button>
-              : way === 'signed' ? <span className="hello"><Svg code={avatar} />{person?.name?.split(' ')[0] ?? person?.label}</span> : <LangButton />}
+              : way === 'signed' ? <span className="hello"><Svg code={faceOf(person)} />{nameOf(person).split(' ')[0]}</span> : <LangButton />}
             {standing ? <button className="acc" onClick={() => go('account')}><Icon name="star" />{t('# points', standing.points)}</button>
               : way !== 'signed' && <button className="acc" onClick={() => go('login')}><Icon name="mask" />{t('Sign in')}</button>}
           </div>
@@ -336,7 +345,7 @@ export const ResidentApp = () => {
           <div className="bar-end">
             {standing && <span className="bar-pts"><Icon name="star" />{t('# points', standing.points)}</span>}
             <LangButton />
-            {way && way !== 'guest' ? <button className="lng" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => go('account')}><Icon name="mask" />{person?.name?.split(' ')[0] ?? t('Profile')}</button>
+            {way && way !== 'guest' ? <button className="lng" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => go('account')}>{way === 'signed' ? <Svg code={faceOf(person)} /> : <Icon name="mask" />}{way === 'signed' ? nameOf(person) : t('Profile')}</button>
               : <button className="lng" onClick={() => go(way ? 'account' : 'login')}><Icon name="mask" />{t(way ? 'Profile' : 'Sign in')}</button>}
           </div>
         </header>
@@ -381,7 +390,7 @@ const Login = ({ t, go, Back, H, onChoose, back }: Ui & { onChoose: (p: Person) 
       <p className="sub">{t('Demo environment. Choose an invented person. Nobody types a PIN or a personal code here.')}</p>
       {error && <p className="err" role="alert">{error}</p>}
       {persons.map((p) => (
-        <button key={p.document} className="way" style={{ minHeight: 72 }} onClick={() => onChoose(p)}><span className="ic"><Icon name="mask" /></span><b>{p.label}</b></button>
+        <button key={p.document} className="way" style={{ minHeight: 72 }} onClick={() => onChoose(p)}><span className="face"><Svg code={faceOf(p)} /></span><span><b>{nameOf(p)}</b>{people[p.document]?.refuses && <span className="lab">{t('Refuses to sign, for the test')}</span>}</span></button>
       ))}
       <div className="grow" /><div className="foot"><button className="txt" onClick={() => go('privacy')}>{t('Continue without signing in')}</button></div>
     </>
@@ -693,6 +702,9 @@ const SignSheet = ({ t, report, person, onSigned, onAnonymous, onClose }: Ui & {
 
 const Mine = ({ t, go, H, Go, Tabs, Thumb, sent }: Ui & { sent: SentReport[] }) => {
   const [states, setStates] = useState<Record<string, Report['status']>>({});
+  const [only, setOnly] = useState<'all' | 'open' | 'closed'>('all');
+  const closed = (s: SentReport) => ['RESOLVED', 'REJECTED'].includes(states[s.ref]);
+  const shown = sent.filter((s) => only === 'all' || closed(s) === (only === 'closed'));
   useEffect(() => {
     sent.slice(0, 20).forEach((s) => reportsApi.one(s.ref).then((r) => setStates((x) => ({ ...x, [s.ref]: r.status }))).catch(() => undefined));
   }, [sent]);
@@ -700,10 +712,16 @@ const Mine = ({ t, go, H, Go, Tabs, Thumb, sent }: Ui & { sent: SentReport[] }) 
     <>
       {H({ children: t('My reports') })}
       <p className="sub" style={{ marginBottom: 16 }}>{t(sent.length ? 'Sent from this phone, newest first' : 'Reports you send from this phone appear here.')}</p>
-      {sent.map((m) => (
+      {sent.length > 1 && (
+        <div className="fl" role="group" aria-label={t('Filter')}>
+          {([['all', 'All'], ['open', 'Open'], ['closed', 'Closed']] as const).map(([k, text]) => <button key={k} aria-pressed={only === k} onClick={() => setOnly(k)}>{t(text)}</button>)}
+        </div>
+      )}
+      {shown.map((m) => (
         <button key={m.ref} className="mine" style={{ marginBottom: 12 }} onClick={() => go(`status/${m.ref}`)}>
           <span className="recap" style={{ margin: 0, flex: 'none' }}>{Thumb({ cat: m.cat, size: 60 })}</span>
-          <span><b>{m.address}</b><small>{m.ref}</small><small>{states[m.ref] ? t(STEP[states[m.ref]]) : ''}</small></span>
+          <span><b>{m.address}</b><small>{m.ref}, {day(m.at)}</small><small>{states[m.ref] ? t(STEP[states[m.ref]]) : ''}</small></span>
+          {states[m.ref] && <span className={`mk ${states[m.ref]}`} aria-hidden="true">{SIGN[states[m.ref]]}</span>}
         </button>
       ))}
       <div className="grow" /><div style={{ margin: '14px 0 18px' }}>{Go({ children: t('Find another report'), onClick: () => go('find'), plum: true })}</div>
@@ -915,7 +933,7 @@ const Account = ({ t, go, H, Go, Txt, Tabs, way, person, standing, sent, LangBut
       <div className="prof">
         <svg className="bgp" viewBox="0 0 390 330" preserveAspectRatio="xMidYMax slice" aria-hidden="true"><rect width="390" height="330" fill="#342b60" /><path d="M195 120 60-20h50zM195 120 150-40h50zM195 120 250-40h50zM195 120 420 90v60zM195 120-30 90v60zM195 120-30 220v60zM195 120 420 220v60z" fill="#463c7c" /><path d="M0 286c80-30 250-30 390-6v60H0z" fill="#3f9774" /></svg>
         <div className="homebar" style={{ margin: 0 }}><span className="vh">{t('Profile')}</span><span />{LangButton()}</div>
-        <Svg code={avatar} />{H({ children: way === 'signed' ? person?.name ?? person?.label : t('Device number on') })}
+        <Svg code={way === 'signed' ? faceOf(person) : avatar} />{H({ children: way === 'signed' ? nameOf(person) : t('Device number on') })}
         <div><span className="rank"><Icon name="star" />{t('Level #', p.level)}, {t('# points', p.points)}</span></div>
       </div>
       <div className="lv" style={{ marginTop: 12 }}>

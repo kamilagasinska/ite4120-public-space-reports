@@ -263,7 +263,7 @@ The database repeats the service validation with CHECK constraints on
 
 | Method + path | Does | Failure answers |
 | --- | --- | --- |
-| `GET /api/reports` | coordinator; paged list (`categoryCode`, `status`, `municipalityCode`, `channel`, `limit`, `offset`, `sort`), each row with days open and responsible unit. **This is the reporting operation.** | 400 unknown category, status or sort · 403 |
+| `GET /api/reports` | coordinator; paged list (`categoryCode`, `status`, `municipalityCode`, `channel`, `late`, `q`, `limit`, `offset`, `sort`), each row with days open and responsible unit. **This is the reporting operation.** | 400 unknown category, status or sort · 403 |
 | `GET /api/reports/{referenceNumber}` | one report with status, category, responsible unit, address, verification, map point and submission time; description, contact and `sys*` metadata only for a coordinator | 404 |
 | `POST /api/reports` | submit; answers **201 + Location** with the reference number; the same `submissionKey` again answers 200 with the existing report; the header `X-Device-Id` makes it a device report, without it a guest report | 400 validation · 429 limit |
 | `POST /api/reports/signings` | start signing a report with a demo test person; answers 201 with a token and the verification code | 400 · 429 limit · 502 Smart-ID unreachable |
@@ -340,6 +340,12 @@ municipal worker are for a computer only. They have a menu on the left with Repo
 and X-Road. The list has a card with a count for every status. The report page shows the
 progress, the buttons of the allowed next steps, the words of the resident, the photos
 and the place on a map. Status, news and forwarding open in a window.
+
+**Showcase data.** The local profile also loads 71 invented past reports over eight
+municipalities (Liquibase context `showcase`), a part of them sent by the
+four Smart-ID demo persons. Their test certificates all carry the name OK TEST, so the
+profile shows an invented name and a drawn portrait instead. The addresses are real, the problems and the senders are
+invented and the pictures are drawn. Tests and a production profile do not load them.
 
 **Languages.** The resident pages are in English, Estonian, Russian and Ukrainian, with
 English first. The translations need a check by native speakers. The coordinator pages
@@ -436,6 +442,14 @@ DANGEROUS_OBJECT, PUBLIC_ORDER and OTHER.
     false report 0.
 34. **Others can say that they see it too.** Given a report on the map, when another device says
     so, then it is seen by 2. The same device again and the sender change nothing.
+
+35. **The coordinator finds late reports and searches.** Given a report of 16 days without a
+    reaction, when late reports are asked for, then only it is listed. A part of the number,
+    the address or the text finds a report. A resident gets 403.
+36. **The coordinator sees the trust of the sender.** Given a device with two reports, one
+    confirmed, when the second is opened by the coordinator, then it shows 2 reports, 10
+    points and no false report, and nothing that names the sender. A resident does not see
+    it, and a guest has no such numbers.
 
 ## Decisions
 

@@ -11,6 +11,10 @@ public class Report {
 
     /** How many people saw it, the sender included. */
     private Integer seenBy;
+    /** The history of the sender, only on the page of one report and only for a coordinator. */
+    private Integer senderReports;
+    private Integer senderFalseReports;
+    private Integer senderPoints;
     private Boolean published;
     /** How often the sender has reminded. */
     private Integer reminders;
@@ -61,9 +65,22 @@ public class Report {
     private String sysModifiedBy;
     private Long sysVersion;
 
+    public void setSender(int reports, int falseReports, int points) {
+        senderReports = reports;
+        senderFalseReports = falseReports;
+        senderPoints = points;
+    }
+
+    public Integer getSenderReports() { return senderReports; }
+    public Integer getSenderFalseReports() { return senderFalseReports; }
+    public Integer getSenderPoints() { return senderPoints; }
+
     /** Removes everything a resident must not see, in particular the contact and the user name. */
     public Report forResident() {
         description = null;
+        senderReports = null;
+        senderFalseReports = null;
+        senderPoints = null;
         reporterContact = null;
         sysCreatedAt = null;
         sysCreatedBy = null;

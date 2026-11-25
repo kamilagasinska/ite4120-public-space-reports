@@ -9,6 +9,8 @@ public class ReportQueryParams extends QueryParams {
     private String channel;
     private String categoryCode;
     private String status;
+    private String q;
+    private Boolean late;
 
     public String getCategoryCode() { return categoryCode; }
     public void setCategoryCode(String categoryCode) { this.categoryCode = categoryCode; }
@@ -18,4 +20,8 @@ public class ReportQueryParams extends QueryParams {
     public void setMunicipalityCode(String municipalityCode) { this.municipalityCode = municipalityCode; }
     public String getChannel() { return channel; }
     public void setChannel(String channel) { this.channel = channel; }
+    public String getQ() { return q; }
+    public void setQ(String q) { this.q = q; }
+    public Boolean getLate() { return late; }
+    public void setLate(Boolean late) { this.late = late; }
 }

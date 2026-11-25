@@ -28,6 +28,10 @@ export interface Report {
   reporterContact?: string;
   reminders?: number;
   seenBy?: number;
+  /** Only for one report. A guest has none. */
+  senderReports?: number;
+  senderFalseReports?: number;
+  senderPoints?: number;
   sysCreatedAt?: string;
   sysCreatedBy?: string;
   sysModifiedAt?: string;
