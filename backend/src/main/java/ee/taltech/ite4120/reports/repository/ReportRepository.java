@@ -6,6 +6,7 @@ import ee.taltech.ite4120.reports.model.Forwarding;
 import ee.taltech.ite4120.reports.model.Report;
 import ee.taltech.ite4120.reports.model.StatusChange;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.helex.commons.db.bean.PgBeanProcessor;
 import org.helex.commons.db.repo.BaseRepository;
@@ -113,6 +114,14 @@ public class ReportRepository extends BaseRepository {
         if (p.getChannel() != null && !p.getChannel().isBlank()) {
             sb.and("r.channel = ?", p.getChannel());
         }
+        if (Boolean.TRUE.equals(p.getLate())) {
+            sb.and("not " + ANSWERED + " and " + DAYS_OPEN + " > 15 and r.status not in ('RESOLVED', 'REJECTED')");
+        }
+        if (p.getQ() != null && !p.getQ().isBlank()) {
+            String part = p.getQ().trim().toLowerCase(Locale.ROOT);
+            sb.and("(strpos(lower(r.reference_number), ?) > 0 or strpos(lower(r.address), ?) > 0 "
+                    + "or strpos(lower(r.description), ?) > 0)", part, part, part);
+        }
         return sb;
     }
 
@@ -129,6 +138,14 @@ public class ReportRepository extends BaseRepository {
                 r.getDescription(), r.getReporterContact(), r.getSubmissionKey(), r.getMunicipalityCode(),
                 r.getMunicipalityName(), r.getChannel(), r.getReporterId(), r.getIpHash(), r.getSignedDigest(),
                 r.getRecipientKind(), r.getRecipientName());
+    }
+
+    /** How many reports the sender has sent and how many of them were false. */
+    public int[] senderCounts(Long reporterId) {
+        return jdbcTemplate.queryForObject("select count(*)::int, (count(*) filter (where exists (select 1 "
+                + "from reports.status_change s where s.report_id = r.id and s.false_report and s.sys_status = 'A')))::int "
+                + "from reports.report r where r.reporter_id = ? and r.sys_status = 'A'",
+                (rs, i) -> new int[] {rs.getInt(1), rs.getInt(2)}, reporterId);
     }
 
     /** Changes the status only if it is still the expected one, so two coordinators cannot overwrite each other. */

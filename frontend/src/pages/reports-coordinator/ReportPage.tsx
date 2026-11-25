@@ -101,6 +101,7 @@ export const ReportPage = () => {
         view('channel', 'Sent as', (r) => (r.channel ? CHANNEL[r.channel] : '—')), view('reporterContact', 'Contact'),
         view('daysToRespond', 'Days to respond', (r) => (r.daysToRespond === undefined ? 'answered' : r.daysToRespond < 0 ? `late by ${-r.daysToRespond}` : r.daysToRespond)),
         view('reminders', 'Reminders'), view('seenBy', 'Seen by'),
+        view('senderPoints', 'Trust of the sender', trust),
       ],
     },
   ];
@@ -172,7 +173,7 @@ const Case = ({ report, photos, act }: { report: Report; photos: Photo[]; act: A
       <section className="work-box" aria-label="Problem">
         <div className="work-head">
           <span dangerouslySetInnerHTML={{ __html: art[catOf(report.categoryCode)] }} aria-hidden="true" />
-          <div><h2>{report.address}</h2><Space wrap>{report.addressVerified ? <AppTag color="green">address verified</AppTag> : <AppTag color="orange">address not verified</AppTag>}{deadline(report)}</Space></div>
+          <div><h2>{report.address}</h2><Space wrap>{report.addressVerified ? <AppTag color="green">address verified</AppTag> : <AppTag color="orange">address not verified</AppTag>}{deadline(report)}{(report.seenBy ?? 1) > 1 && <AppTag color="blue">seen by {report.seenBy}</AppTag>}{!!report.reminders && <AppTag color="red">reminded {report.reminders}×</AppTag>}{!!report.senderFalseReports && <AppTag color="red">sender had a false report</AppTag>}</Space></div>
         </div>
         <blockquote>{report.description}</blockquote>
         <Image.PreviewGroup>
@@ -196,6 +197,10 @@ const Case = ({ report, photos, act }: { report: Report; photos: Photo[]; act: A
     </div>
   );
 };
+
+/** How far the sender can be trusted. Who it is stays unknown. */
+const trust = (r: Report) => (r.senderReports === undefined ? 'A guest, no history'
+  : `${r.senderPoints} points, ${r.senderReports} ${r.senderReports === 1 ? 'report' : 'reports'}, ${r.senderFalseReports} false`);
 
 const deadline = (r: Report) => {
   if (r.daysToRespond === undefined) return <AppTag color="green">answered</AppTag>;

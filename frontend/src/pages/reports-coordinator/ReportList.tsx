@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Select, Space } from 'antd';
+import { Input, Select, Space } from 'antd';
 import { AppLink, AppTag, AppTimestamp, ResourceList, useAppNotification, type ResourceListColumn } from '@helex/ui';
 import { ApiProblem, reportsApi, type Category, type Report, type ReportStatus } from '../../reportsApi';
 import { art } from '../reports/art';
@@ -24,6 +24,9 @@ export const ReportList = () => {
   const [sort, setSort] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [denied, setDenied] = useState(false);
+  const [late, setLate] = useState(false);
+  const [q, setQ] = useState('');
+  const [lateCount, setLateCount] = useState<number>();
   const [counts, setCounts] = useState<Partial<Record<ReportStatus, number>>>({});
   const call = useRef(0);
 
@@ -34,17 +37,18 @@ export const ReportList = () => {
   /* The counters follow the other filters, so a card shows what pressing it will give. */
   useEffect(() => {
     let live = true;
-    Promise.all(STATES.map((s) => reportsApi.list({ categoryCode, channel, status: s, limit: 1 })))
+    Promise.all(STATES.map((s) => reportsApi.list({ categoryCode, channel, q, status: s, limit: 1 })))
       .then((all) => { if (live) setCounts(Object.fromEntries(all.map((r, i) => [STATES[i], r.meta?.total ?? r.data.length]))); })
       .catch(() => undefined);
+    reportsApi.list({ categoryCode, channel, q, late: 'true', limit: 1 }).then((r) => { if (live) setLateCount(r.meta?.total ?? r.data.length); }).catch(() => undefined);
     return () => { live = false; };
-  }, [categoryCode, channel]);
+  }, [categoryCode, channel, q]);
 
   const load = useCallback(() => {
     const mine = ++call.current;
     setLoading(true);
     reportsApi
-      .list({ categoryCode, status, channel, sort, limit: PAGE, offset: (page - 1) * PAGE })
+      .list({ categoryCode, status, channel, sort, q, late: late ? 'true' : undefined, limit: PAGE, offset: (page - 1) * PAGE })
       .then((r) => {
         if (mine !== call.current) return;
         setRows(r.data);
@@ -55,7 +59,7 @@ export const ReportList = () => {
         else notify.error('Could not load reports', e.message);
       })
       .finally(() => mine === call.current && setLoading(false));
-  }, [categoryCode, status, channel, sort, page, notify]);
+  }, [categoryCode, status, channel, sort, q, late, page, notify]);
   useEffect(load, [load]);
 
   if (denied) return <NoAccess />;
@@ -79,8 +83,8 @@ export const ReportList = () => {
       key: 'daysToRespond', title: 'Days to respond', dataIndex: 'daysToRespond',
       render: (d?: number) => (d === undefined ? 'answered' : d < 0 ? <AppTag color="red">late by {-d}</AppTag> : d),
     },
-    { key: 'reminders', title: 'Reminders', dataIndex: 'reminders', defaultVisible: false, render: (n?: number) => n || '' },
-    { key: 'seenBy', title: 'Seen by', dataIndex: 'seenBy', defaultVisible: false },
+    { key: 'reminders', title: 'Reminders', dataIndex: 'reminders', render: (n?: number) => (n ? <AppTag color="red">{n}</AppTag> : '') },
+    { key: 'seenBy', title: 'Seen by', dataIndex: 'seenBy' },
     { key: 'channel', title: 'Sent as', dataIndex: 'channel', render: (c: Report['channel']) => CHANNEL[c] },
     { key: 'responsibleUnit', title: 'Responsible unit', dataIndex: 'responsibleUnit', defaultVisible: false },
     { key: 'municipalityName', title: 'Municipality', dataIndex: 'municipalityName', defaultVisible: false },
@@ -89,9 +93,9 @@ export const ReportList = () => {
   const first = <T,>(set: (v: T) => void) => (v: T) => { setPage(1); set(v); };
 
   const all = STATES.reduce((n, s) => n + (counts[s] ?? 0), 0);
-  const pick = first(setStatus);
+  const pick = (s?: ReportStatus) => { setPage(1); setLate(false); setStatus(s); };
   const card = (text: string, n: number | undefined, s?: ReportStatus) => (
-    <button key={text} type="button" aria-pressed={status === s} onClick={() => pick(s)}>
+    <button key={text} type="button" aria-pressed={!late && status === s} onClick={() => pick(s)}>
       <b>{n ?? '–'}</b><span>{s && <i style={{ background: DOT[s] }} />}{text}</span>
     </button>
   );
@@ -101,11 +105,14 @@ export const ReportList = () => {
       <div className="work-hello"><h1>Reports of residents</h1><p>{counts.RECEIVED ? `${counts.RECEIVED} waiting for your first answer` : 'Nothing is waiting for a first answer'}</p></div>
       <div className="work-counts" role="group" aria-label="Status">
         {card('All', Object.keys(counts).length ? all : undefined)}
+        <button type="button" className={lateCount ? 'late' : ''} aria-pressed={late} onClick={() => { setPage(1); setStatus(undefined); setLate(true); }}>
+          <b>{lateCount ?? '–'}</b><span>Late, over 15 days</span>
+        </button>
         {STATES.map((s) => card(STATUS[s].text, counts[s], s))}
       </div>
       <ResourceList<Report>
         embedded
-        title={status ? STATUS[status].text : 'All reports'}
+        title={late ? 'Late reports' : status ? STATUS[status].text : 'All reports'}
         columns={columns}
         dataSource={rows}
         rowKey="referenceNumber"
@@ -113,6 +120,7 @@ export const ReportList = () => {
         pagination={{ current: page, pageSize: PAGE, total, onChange: setPage, showSizeChanger: false }}
         actions={
           <Space wrap>
+            <Input.Search aria-label="Search" placeholder="Number, street, city or words" allowClear maxLength={100} style={{ width: 260 }} onSearch={(v) => { setPage(1); setQ(v.trim()); }} />
             <Select aria-label="Category" placeholder="Category" allowClear style={{ width: 190 }} value={categoryCode} onChange={first(setCategoryCode)}
               options={categories.map((c) => ({ value: c.code, label: c.name }))} />
             <Select aria-label="Sent as" placeholder="Sent as" allowClear style={{ width: 120 }} value={channel} onChange={first(setChannel)}

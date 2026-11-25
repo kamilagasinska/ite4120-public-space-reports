@@ -306,6 +306,8 @@ const TEXTS: Record<string, string[]> = {
   "Reports near you": ["Teated sinu lähedal", "Сообщения рядом", "Повідомлення поруч"],
   "Open the map": ["Ava kaart", "Открыть карту", "Відкрити мапу"],
   "Send": ["Saada", "Отправить", "Надіслати"],
+  "Open": ["Avatud", "Открытые", "Відкриті"],
+  "Closed": ["Suletud", "Закрытые", "Закриті"],
 };
 
 /** On a computer the same texts must not speak of a phone or of tapping. */

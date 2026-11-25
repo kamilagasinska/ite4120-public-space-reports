@@ -6,6 +6,7 @@ import {
   type PhotoInfo, type Report, type Standing,
 } from '../../reportsApi';
 import { art, avatar, icons, logo, medals } from './art';
+import { demoHistory, isDemo } from './demoHistory';
 import './hio.css';
 import './web.css';
 import { MapView, SIGN, type Box, type Spot } from './MapView';
@@ -83,14 +84,16 @@ export const ResidentApp = () => {
   }, [way]);
   useEffect(() => { if (screen === 'home' || screen === 'account') refreshStanding(); }, [screen, refreshStanding]);
 
+  const remember = (list: SentReport[]) => { memory.setSent(list); setSent(list); };
   const choose = (w: Way, p: Person | null = null) => {
     if (w === 'guest') memory.forgetDevice();
     memory.setWay(w); setWay(w);
     memory.setPerson(p); setPerson(p);
     memory.setStanding(null); setStanding(null);
+    const real = memory.sent().filter((s) => !isDemo(s));
+    remember(p ? [...real, ...demoHistory(p.document)] : real);
     if (started.current) { change({ anonymous: false }); go('check'); } else go('home');
   };
-  const remember = (list: SentReport[]) => { memory.setSent(list); setSent(list); };
 
   const request = (d: Draft): NewReport => ({
     categoryCode: codeOf(d), address: d.address, latitude: d.spot?.latitude, longitude: d.spot?.longitude,
@@ -297,7 +300,7 @@ export const ResidentApp = () => {
       break;
     case 'account':
       body = <Account {...ui} way={way} person={person} standing={standing} sent={sent} LangButton={LangButton}
-        onOut={() => { memory.setWay(null); setWay(null); memory.setPerson(null); setPerson(null); memory.setStanding(null); setStanding(null); started.current = false; go('welcome'); }} />;
+        onOut={() => { remember(memory.sent().filter((s) => !isDemo(s))); memory.setWay(null); setWay(null); memory.setPerson(null); setPerson(null); memory.setStanding(null); setStanding(null); started.current = false; go('welcome'); }} />;
       break;
     default:
       body = (
@@ -693,6 +696,9 @@ const SignSheet = ({ t, report, person, onSigned, onAnonymous, onClose }: Ui & {
 
 const Mine = ({ t, go, H, Go, Tabs, Thumb, sent }: Ui & { sent: SentReport[] }) => {
   const [states, setStates] = useState<Record<string, Report['status']>>({});
+  const [only, setOnly] = useState<'all' | 'open' | 'closed'>('all');
+  const closed = (s: SentReport) => ['RESOLVED', 'REJECTED'].includes(states[s.ref]);
+  const shown = sent.filter((s) => only === 'all' || closed(s) === (only === 'closed'));
   useEffect(() => {
     sent.slice(0, 20).forEach((s) => reportsApi.one(s.ref).then((r) => setStates((x) => ({ ...x, [s.ref]: r.status }))).catch(() => undefined));
   }, [sent]);
@@ -700,10 +706,16 @@ const Mine = ({ t, go, H, Go, Tabs, Thumb, sent }: Ui & { sent: SentReport[] }) 
     <>
       {H({ children: t('My reports') })}
       <p className="sub" style={{ marginBottom: 16 }}>{t(sent.length ? 'Sent from this phone, newest first' : 'Reports you send from this phone appear here.')}</p>
-      {sent.map((m) => (
+      {sent.length > 1 && (
+        <div className="fl" role="group" aria-label={t('Filter')}>
+          {([['all', 'All'], ['open', 'Open'], ['closed', 'Closed']] as const).map(([k, text]) => <button key={k} aria-pressed={only === k} onClick={() => setOnly(k)}>{t(text)}</button>)}
+        </div>
+      )}
+      {shown.map((m) => (
         <button key={m.ref} className="mine" style={{ marginBottom: 12 }} onClick={() => go(`status/${m.ref}`)}>
           <span className="recap" style={{ margin: 0, flex: 'none' }}>{Thumb({ cat: m.cat, size: 60 })}</span>
-          <span><b>{m.address}</b><small>{m.ref}</small><small>{states[m.ref] ? t(STEP[states[m.ref]]) : ''}</small></span>
+          <span><b>{m.address}</b><small>{m.ref}, {day(m.at)}</small><small>{states[m.ref] ? t(STEP[states[m.ref]]) : ''}</small></span>
+          {states[m.ref] && <span className={`mk ${states[m.ref]}`} aria-hidden="true">{SIGN[states[m.ref]]}</span>}
         </button>
       ))}
       <div className="grow" /><div style={{ margin: '14px 0 18px' }}>{Go({ children: t('Find another report'), onClick: () => go('find'), plum: true })}</div>

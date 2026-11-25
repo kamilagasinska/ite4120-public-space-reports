@@ -76,7 +76,12 @@ public class ReportService {
     }
 
     public Report find(String referenceNumber) {
-        return visible(require(referenceNumber));
+        Report report = require(referenceNumber);
+        if (access.isCoordinator() && report.getReporterId() != null) {
+            int[] counts = repository.senderCounts(report.getReporterId());
+            report.setSender(counts[0], counts[1], standing(report.getReporterId()).points());
+        }
+        return visible(report);
     }
 
     /** A guest or device report. The device identifier is null for a guest. */
