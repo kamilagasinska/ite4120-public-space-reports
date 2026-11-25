@@ -18,6 +18,8 @@ export default defineConfig({
   },
   server: {
     port: 18640,
+    // The address of a forwarded port in GitHub Codespaces.
+    allowedHosts: ['.app.github.dev'],
     proxy: {
       // Everything the app calls goes through the dev proxy to the backend —
       // same-origin in the browser, so no CORS configuration anywhere.
