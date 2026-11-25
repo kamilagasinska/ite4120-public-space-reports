@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { Input, Switch, Upload } from 'antd';
 import {
@@ -7,12 +7,13 @@ import {
 } from '../../reportsApi';
 import { art, avatar, icons, logo, medals } from './art';
 import './hio.css';
+import './web.css';
 import { MapView, SIGN, type Box, type Spot } from './MapView';
 import {
   ANSWERS, CATS, catOf, codeOf, descriptionOf, detailsOf, ELSE, memory, NAME, newDraft, QUESTION, SIZES, TILE,
   type Cat, type Draft, type Person, type SentReport, type Way,
 } from './store';
-import { LANGS, translate, type Lang } from './texts';
+import { LANGS, ON_WEB, translate, type Lang } from './texts';
 
 const TALLINN: Spot = { latitude: 59.437, longitude: 24.7536 };
 const STEP: Record<Report['status'], string> = {
@@ -24,6 +25,16 @@ const Svg = ({ code, className }: { code: string; className?: string }) => (
   <span className={className} style={{ display: 'contents' }} dangerouslySetInnerHTML={{ __html: code }} />
 );
 const Icon = ({ name }: { name: string }) => <Svg code={(icons as Record<string, string>)[name] ?? ''} />;
+
+/** A computer gets the same steps in a wide layout (web.css). A phone stays as it is. */
+const WIDE = window.matchMedia('(min-width: 960px)');
+const useWide = () => useSyncExternalStore(
+  (changed) => { WIDE.addEventListener('change', changed); return () => WIDE.removeEventListener('change', changed); },
+  () => WIDE.matches,
+);
+const TABS = [['home', 'plus2', 'Report'], ['map', 'map', 'Map'], ['mine', 'list', 'My reports'], ['account', 'mask', 'Profile']] as const;
+/** The steps beside the form, with the screens that belong to each. */
+const PARTS: [string, string[]][] = [['Place', ['where', 'near']], ['Details', ['what', 'words']], ['Photos', ['photo']], ['Contact', ['contact']], ['Send', ['check', 'sign']]];
 
 const message = (e: unknown, t: (k: string) => string) =>
   e instanceof ApiProblem && e.status < 500 ? e.message : t('Something went wrong. Try again.');
@@ -43,7 +54,8 @@ export const ResidentApp = () => {
   const root = useRef<HTMLDivElement>(null);
   const started = useRef(false);
 
-  const t = useCallback((key: string, ...n: number[]) => translate(lang, key, ...n), [lang]);
+  const wide = useWide();
+  const t = useCallback((key: string, ...n: number[]) => translate(lang, (wide && ON_WEB[key]) || key, ...n), [lang, wide]);
   const go = useCallback((s: string) => navigate(`/spot/${s}`), [navigate]);
   const change = (part: Partial<Draft>) => setDraft((d) => ({ ...d, ...part }));
   const signed = way === 'signed' && !draft.anonymous;
@@ -116,7 +128,7 @@ export const ResidentApp = () => {
   const Thumb = ({ cat, size = 84 }: { cat: Cat; size?: number }) => <div className="thumb" style={{ width: size, height: size }}><Svg code={art[cat]} /></div>;
   const Tabs = ({ at }: { at: number }) => (
     <nav className="tabs" aria-label={t('Main')}>
-      {([['home', 'plus2', 'Report'], ['map', 'map', 'Map'], ['mine', 'list', 'My reports'], ['account', 'mask', 'Profile']] as const).map(([s, icon, text], k) => (
+      {TABS.map(([s, icon, text], k) => (
         <button key={s} aria-current={k === at ? 'page' : undefined} onClick={() => go(s)}><Icon name={icon} />{t(text)}</button>
       ))}
     </nav>
@@ -124,7 +136,7 @@ export const ResidentApp = () => {
   const next = (s: string) => go(editing ? 'check' : s);
 
   // ---- screens ----------------------------------------------------------
-  const ui = { t, go, next, Back, H, Go, Txt, Tabs, Thumb };
+  const ui = { t, go, next, wide, Back, H, Go, Txt, Tabs, Thumb };
   let body: ReactNode;
   switch (screen) {
     case 'welcome':
@@ -306,15 +318,45 @@ export const ResidentApp = () => {
               }}><Svg code={art[c]} /><b>{t(TILE[c])}</b></button>
             ))}
           </div>
+          {wide && !editing && <NearYou {...ui} />}
           {!editing && <Tabs at={0} />}
         </>
       );
   }
 
-  return <div className="hio" ref={root}><main key={screen} className={`scr${screen === 'done' ? ' done' : ''}`}>{body}</main></div>;
+  const kind = ['home', 'map', 'mine', 'account', 'welcome', 'done', 'status'].includes(screen) ? screen : 'form';
+  const part = PARTS.findIndex(([, screens]) => screens.includes(screen));
+  const tab = screen === 'map' || screen === 'account' ? screen : ['mine', 'find', 'status'].includes(screen) ? 'mine' : 'home';
+  return (
+    <div className="hio app" ref={root}>
+      {wide && (
+        <header className="bar">
+          <button className="brand" onClick={() => go(way ? 'home' : 'welcome')}><Svg code={logo} /><span>Hole in One</span></button>
+          {way && <nav aria-label={t('Main')}>{TABS.slice(0, 3).map(([s, icon, text]) => <button key={s} aria-current={tab === s ? 'page' : undefined} onClick={() => go(s)}><Icon name={icon} />{t(text)}</button>)}</nav>}
+          <div className="bar-end">
+            {standing && <span className="bar-pts"><Icon name="star" />{t('# points', standing.points)}</span>}
+            <LangButton />
+            {way && way !== 'guest' ? <button className="lng" aria-current={tab === 'account' ? 'page' : undefined} onClick={() => go('account')}><Icon name="mask" />{person?.name?.split(' ')[0] ?? t('Profile')}</button>
+              : <button className="lng" onClick={() => go(way ? 'account' : 'login')}><Icon name="mask" />{t(way ? 'Profile' : 'Sign in')}</button>}
+          </div>
+        </header>
+      )}
+      <div className={`page p-${kind}`}>
+        {wide && kind === 'form' && (
+          <aside className="side">
+            <div className="side-art"><Svg code={part >= 0 ? art[draft.cat] : art.hero} /></div>
+            {part >= 0 && <><b className="side-name">{t(NAME[draft.cat])}</b>
+              <ol>{PARTS.map(([name], k) => <li key={name} className={k < part ? 'did' : k === part ? 'now' : ''} aria-current={k === part ? 'step' : undefined}><i>{k < part ? <Icon name="ok" /> : k + 1}</i>{t(name)}</li>)}</ol></>}
+          </aside>
+        )}
+        <main key={screen} className={`scr${screen === 'done' ? ' done' : ''}`}>{body}</main>
+      </div>
+    </div>
+  );
 };
 
 type Ui = {
+  wide: boolean;
   t: (key: string, ...n: number[]) => string;
   go: (s: string) => void;
   next: (s: string) => void;
@@ -490,7 +532,7 @@ const Words = ({ t, go, Back, H, Go, draft, change }: DraftUi) => {
 
 const MB8 = 8 * 1024 * 1024;
 
-const Photos = ({ t, next, Back, H, Go, Txt, draft, change }: DraftUi) => {
+const Photos = ({ t, wide, next, Back, H, Go, Txt, draft, change }: DraftUi) => {
   const [note, setNote] = useState('');
   const [skip, setSkip] = useState(false);
   const [urls, setUrls] = useState<string[]>([]);
@@ -514,14 +556,14 @@ const Photos = ({ t, next, Back, H, Go, Txt, draft, change }: DraftUi) => {
     <>
       {Back({ to: 'what', step: 3 })}{H({ children: n ? t(n === 1 ? '# photo added' : '# photos added', n) : t('Take a photo') })}
       <p className="sub">{t('Up to 5 photos. Keep faces and car plates out of the picture.')}</p>
-      {n < 5 && pick(<button className={n ? 'cam sm' : 'cam'}><Icon name="cam" />{t(n ? 'Add another' : 'Open camera')}</button>, true)}
+      {n < 5 && pick(wide ? <button className={n ? 'cam sm' : 'cam'}><Icon name="cam" />{t(n ? 'Add another' : 'Choose photos')}</button> : <button className={n ? 'cam sm' : 'cam'}><Icon name="cam" />{t(n ? 'Add another' : 'Open camera')}</button>, !wide)}
       {note && <div className="note" role="alert">{note}</div>}
       {skip && !n && <div className="note" role="alert"><b>{t('Without a photo the trust level is lower.')}</b> {t('You can still send the report.')}</div>}
       {n > 0 && <ul className="ph">{urls.map((u, k) => <li key={u}><img src={u} alt={`${t('Photo')} ${k + 1}`} /><button aria-label={t('Remove photo #', k + 1)} onClick={() => change({ photos: draft.photos.filter((_, j) => j !== k) })}><Icon name="x" /></button></li>)}</ul>}
       <div className="grow" />
       <div className="foot">
-        {n ? Go({ children: t('Continue'), onClick: () => next('contact') }) : pick(<button className="go pl">{t('Choose from the phone')}</button>, false)}
-        {n ? n < 5 && pick(<button className="txt">{t('Choose from the phone')}</button>, false)
+        {n ? Go({ children: t('Continue'), onClick: () => next('contact') }) : !wide && pick(<button className="go pl">{t('Choose from the phone')}</button>, false)}
+        {n ? n < 5 && !wide && pick(<button className="txt">{t('Choose from the phone')}</button>, false)
           : Txt({ children: t(skip ? 'Continue without a photo' : 'Skip, I have no photo'), onClick: () => (skip ? next('contact') : setSkip(true)) })}
       </div>
     </>
@@ -774,8 +816,39 @@ const Status = ({ t, go, Back, H, Go, Txt, reference, own }: Ui & { reference: s
   );
 };
 
+const PointList = ({ t, Thumb, points, picked, onPick }: Ui & { points: MapPoint[]; picked?: number | null; onPick: (id: number) => void }) => (
+  <ul className="plist">
+    {points.slice(0, 50).map((x) => (
+      <li key={x.id}><button className="mine" aria-pressed={x.id === picked} onClick={() => onPick(x.id)}>
+        <span className="recap" style={{ margin: 0, flex: 'none' }}>{Thumb({ cat: catOf(x.categoryCode), size: 52 })}</span>
+        <span><b>{t(NAME[catOf(x.categoryCode)])}</b><small>{x.municipalityName ? `${x.municipalityName}, ` : ''}{day(x.submittedOn)}</small></span>
+        <span className={`mk ${x.status}`} title={t(statusName(x))}>{SIGN[x.status]}</span><span className="vh">{t(statusName(x))}</span>
+      </button></li>
+    ))}
+  </ul>
+);
+
+/** Only on a computer, beside the pictures of the first page. */
+const NearYou = (p: Ui) => {
+  const { t, go } = p;
+  const [points, setPoints] = useState<MapPoint[]>([]);
+  const call = useRef(0);
+  const load = useCallback((b: Box) => {
+    const mine = ++call.current;
+    reportsApi.map(b.west, b.south, b.east, b.north).then((x) => { if (mine === call.current) setPoints(x); }).catch(() => undefined);
+  }, []);
+  return (
+    <section className="nearyou" aria-label={t('Reports near you')}>
+      <h2>{t('Reports near you')}</h2>
+      <div className="bigmap"><MapView center={TALLINN} zoom={11} points={points} onPoint={() => go('map')} onBox={load} label={(x) => `${t(NAME[catOf(x.categoryCode)])}, ${t(statusName(x))}`} /></div>
+      <PointList {...p} points={points.slice(0, 3)} onPick={() => go('map')} />
+      <button className="go pl" onClick={() => go('map')}>{t('Open the map')}</button>
+    </section>
+  );
+};
+
 const PublicMap = (p: Ui & { way: Way | null }) => {
-  const { t, H, Tabs, way } = p;
+  const { t, H, Tabs, way, wide } = p;
   const [points, setPoints] = useState<MapPoint[]>([]);
   const [filter, setFilter] = useState<Cat | ''>('');
   const [list, setList] = useState(false);
@@ -803,8 +876,14 @@ const PublicMap = (p: Ui & { way: Way | null }) => {
         {CATS.map((c) => <button key={c} aria-pressed={filter === c} onClick={() => setFilter(c)}>{t(TILE[c])}</button>)}
       </div>
       {error && <p className="err" role="alert">{error}</p>}
-      <div className="bigmap" style={list ? { display: 'none' } : undefined}><MapView center={center} zoom={11} points={shown} onPoint={setPicked} onBox={load} label={label} /></div>
-      {list ? <div style={{ marginTop: 12 }}>{shown.length ? shown.slice(0, 20).map((x) => <PointCard key={x.id} {...p} way={way} point={x} text={t('I see it too')} />) : <p className="sub">{t('Nothing here yet.')}</p>}</div> : (
+      <div className="bigmap" style={list && !wide ? { display: 'none' } : undefined}><MapView center={center} zoom={11} points={shown} onPoint={setPicked} onBox={load} label={label} /></div>
+      {wide ? (
+        <div className="beside">
+          <p className="legend">{(Object.keys(SIGN) as Report['status'][]).map((s) => <span key={s}><i className={`mk ${s}`} style={{ borderWidth: 0 }} />{SIGN[s]} {t(STEP[s])}</span>)}</p>
+          {one ? <PointCard {...p} way={way} point={one} text={t('I see it too')} /> : <p className="sub" style={{ margin: '0 0 12px' }}>{t(shown.length ? 'Tap a pin to see the report.' : 'Nothing here yet.')}</p>}
+          <PointList {...p} points={shown} picked={picked} onPick={setPicked} />
+        </div>
+      ) : list ? <div style={{ marginTop: 12 }}>{shown.length ? shown.slice(0, 20).map((x) => <PointCard key={x.id} {...p} way={way} point={x} text={t('I see it too')} />) : <p className="sub">{t('Nothing here yet.')}</p>}</div> : (
         <>
           <p className="legend">{(Object.keys(SIGN) as Report['status'][]).map((s) => <span key={s}><i className={`mk ${s}`} style={{ borderWidth: 0 }} />{SIGN[s]} {t(STEP[s])}</span>)}</p>
           {one ? <PointCard {...p} way={way} point={one} text={t('I see it too')} /> : <p className="sub" style={{ marginBottom: 12 }}>{t(shown.length ? 'Tap a pin to see the report.' : 'Nothing here yet.')}</p>}

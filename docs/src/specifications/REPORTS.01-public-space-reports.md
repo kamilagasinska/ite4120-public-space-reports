@@ -333,7 +333,15 @@ The list without `sort` shows the longest waiting report first. Sort keys are
 | | history | `AppCard` | from, to, reason, when, by whom |
 | | metadata | `ResourceForm.sidebar` | created and modified at and by, version |
 
-**Languages.** The phone pages are in English, Estonian, Russian and Ukrainian, with
+**Layout.** The resident pages are at `/spot` and have two layouts. Below 960 px it is
+the phone layout. From 960 px the same steps are laid out for a computer, with the menu
+on top, the steps beside the form and the list beside the map. The pages of the
+municipal worker are for a computer only. They have a menu on the left with Reports, Map
+and X-Road. The list has a card with a count for every status. The report page shows the
+progress, the buttons of the allowed next steps, the words of the resident, the photos
+and the place on a map. Status, news and forwarding open in a window.
+
+**Languages.** The resident pages are in English, Estonian, Russian and Ukrainian, with
 English first. The translations need a check by native speakers. The coordinator pages
 are in English. Six pictures lead to the nine categories. Nature covers TREES and
 DEAD_ANIMAL, Graffiti and damage is VANDALISM, Danger and other covers

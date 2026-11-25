@@ -1,0 +1,124 @@
+/* The resident pages on a computer. The same screens as on the phone, laid out for a wide window. */
+.hio.app .page { display: contents; }
+.hio.app .mine > .mk, .hio.app .mine > .vh { flex: none !important; }
+.hio.app .plist { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; }
+.hio.app .plist .mine[aria-pressed=true] { outline: 3px solid var(--plum); }
+
+@media (min-width: 960px) {
+  .hio.app { max-width: none; padding: 0; }
+  .hio.app .tabs, .hio.app .page.p-home .homebar, .hio.app .page.p-welcome .homebar { display: none; }
+  .hio.app .bar { position: sticky; top: 0; z-index: 8; background: #fff; display: flex; align-items: center; gap: 28px; height: 76px; padding: 0 max(28px, calc((100vw - 1240px) / 2)); box-shadow: 0 2px 14px rgba(52, 43, 96, .08); }
+  .hio.app .bar .brand { padding: 0; white-space: nowrap; }
+  .hio.app .bar nav { display: flex; gap: 6px; }
+  .hio.app .bar nav button { white-space: nowrap; display: flex; align-items: center; gap: 10px; min-height: 46px; padding: 0 18px; border-radius: 23px; font-weight: 700; color: var(--ink2); }
+  .hio.app .bar nav svg { width: 22px; height: 22px; }
+  .hio.app .bar nav button:hover { background: var(--bg); }
+  .hio.app .bar nav [aria-current] { background: #fde0ef; color: #b5045f; }
+  .hio.app .bar-end { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+  .hio.app .bar .lng { background: var(--bg); box-shadow: none; white-space: nowrap; }
+  .hio.app .bar .lng[aria-current] { background: #fde0ef; color: #b5045f; }
+  .hio.app .bar-pts { display: flex; align-items: center; gap: 8px; font-weight: 700; color: #3a2a00; background: #ffd24a; border-radius: 22px; min-height: 44px; padding: 0 16px; font-size: 15px; white-space: nowrap; }
+  .hio.app .bar-pts svg { width: 20px; height: 20px; }
+
+  .hio.app .page { display: block; width: min(1240px, 100% - 56px); margin: 0 auto; padding: 36px 0 60px; }
+  .hio.app .scr { min-height: 0; padding: 0; animation: none; }
+  .hio.app h1 { font-size: 40px; }
+  .hio.app .foot { position: static; background: none; padding: 0; margin-top: 28px; display: flex; flex-direction: row-reverse; justify-content: flex-end; align-items: center; gap: 16px; }
+  .hio.app .foot { flex-direction: row; justify-content: flex-start; flex-wrap: wrap; }
+  .hio.app .foot .go, .hio.app .foot .txt { width: auto; min-width: 200px; padding: 0 32px; }
+  .hio.app .go { min-height: 56px; box-shadow: none; transition: background .15s; }
+  .hio.app .go:not([disabled]):not(.pl):hover { background: #b5045f; }
+  .hio.app .go.pl:hover { background: #272048; }
+  .hio.app .tile, .hio.app .chip, .hio.app .way { transition: transform .2s var(--spring), border-color .15s; }
+  .hio.app .tile:hover, .hio.app .mine:hover { transform: translateY(-3px); }
+  .hio.app .chip:hover, .hio.app .way:hover { border-color: #b9b4d6; }
+  .hio.app .chip[aria-pressed=true], .hio.app .way[aria-pressed=true] { border-color: var(--plum); }
+
+  /* first page */
+  .hio.app .page.p-home .scr { display: grid; grid-template-columns: minmax(0, 1fr) 380px; column-gap: 36px; grid-template-rows: auto auto 1fr; }
+  .hio.app .page.p-home h1, .hio.app .page.p-home .sub { grid-column: 1; }
+  .hio.app .home.home:not(.page) { grid-column: 1; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-auto-rows: 250px; gap: 18px; margin: 26px 0 0; align-content: start; }
+  .hio.app .home .tile b { font-size: 23px; }
+  .hio.app .nearyou { grid-column: 2; grid-row: 1 / span 3; background: #fff; border-radius: 28px; padding: 22px; box-shadow: 0 4px 14px rgba(52, 43, 96, .08); align-self: start; }
+  .hio.app .nearyou h2 { margin: 0; font-size: 22px; }
+  .hio.app .nearyou .bigmap { height: 250px; min-height: 0; }
+  .hio.app .nearyou .mine { background: var(--bg); box-shadow: none; padding: 10px 12px; }
+  .hio.app .nearyou .go { margin-top: 14px; min-height: 50px; font-size: 17px; }
+
+  /* welcome */
+  .hio.app .page.p-welcome .scr { display: grid; grid-template-columns: 1.1fr 1fr; gap: 0 56px; align-items: center; min-height: 560px; }
+  .hio.app .page.p-welcome .welc { grid-row: 1 / span 3; height: 520px; max-height: none; margin: 0; }
+  .hio.app .page.p-welcome h1 { font-size: 60px; align-self: end; }
+  .hio.app .page.p-welcome .sub { font-size: 20px; }
+  .hio.app .page.p-welcome .foot { align-self: start; }
+
+  /* steps of a report */
+  .hio.app .page.p-form { display: grid; grid-template-columns: 320px minmax(0, 1fr); gap: 32px; align-items: start; }
+  .hio.app .page.p-form .scr { background: #fff; border-radius: 32px; padding: 34px 40px 40px; box-shadow: 0 4px 14px rgba(52, 43, 96, .08); min-height: 560px; }
+  .hio.app .page.p-form .scr :is(.way, .chip, .three button, .sw, .rows, .tr, .found) { box-shadow: none; border: 3px solid transparent; background: var(--bg); }
+  .hio.app .page.p-form .scr :is(.way, .chip, .three button)[aria-pressed=true] { border-color: var(--plum); background: #eeecf7; }
+  .hio.app .page.p-form .rows, .hio.app .page.p-form .tr, .hio.app .page.p-form .found, .hio.app .page.p-form .sw { border-width: 0; }
+  .hio.app .page.p-form .rb { background: var(--bg); box-shadow: none; }
+  .hio.app .page.p-form .road { display: none; }
+  .hio.app .page.p-form .top { margin: 0 0 10px -6px; }
+  .hio.app .page.p-form .scene { height: 380px; flex: none; }
+  .hio.app .page.p-form .chips { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .hio.app .page.p-form .cam { max-height: 240px; }
+  .hio.app .page.p-form .ph { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  .hio.app .page.p-form .inp { max-width: 640px; }
+  .hio.app .side { position: sticky; top: 112px; background: var(--plum); color: #fff; border-radius: 32px; overflow: hidden; padding-bottom: 12px; }
+  .hio.app .side-art { height: 210px; position: relative; }
+  .hio.app .side-art svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .hio.app .side-name { display: block; font-size: 24px; padding: 20px 26px 4px; }
+  .hio.app .side ol { list-style: none; margin: 0; padding: 8px 26px 14px; }
+  .hio.app .side li { display: flex; align-items: center; gap: 14px; min-height: 52px; color: #cfcbe3; }
+  .hio.app .side li i { width: 36px; height: 36px; border-radius: 50%; border: 2px solid #857cb3; display: grid; place-items: center; font-style: normal; font-weight: 700; flex: none; }
+  .hio.app .side li i svg { width: 18px; height: 18px; }
+  .hio.app .side li.did { color: #fff; }
+  .hio.app .side li.did i { background: #fff; border-color: #fff; color: var(--plum); }
+  .hio.app .side li.now { color: #fff; font-weight: 700; }
+  .hio.app .side li.now i { background: var(--mag); border-color: var(--mag); color: #fff; }
+
+  /* map */
+  .hio.app .page.p-map .scr { display: grid; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 28px; grid-template-rows: auto auto 1fr; }
+  .hio.app .page.p-map .homebar, .hio.app .page.p-map .fl, .hio.app .page.p-map .err { grid-column: 1 / -1; }
+  .hio.app .page.p-map .homebar .lng { display: none; }
+  .hio.app .page.p-map .fl { margin: 16px 0 0; padding: 2px 0; }
+  .hio.app .page.p-map .bigmap { grid-column: 1; height: calc(100vh - 300px); min-height: 460px; margin: 18px 0 0; }
+  .hio.app .beside { margin-top: 18px; max-height: max(460px, calc(100vh - 300px)); overflow: auto; padding: 2px 4px; }
+
+  /* my reports, one report, profile, sent */
+  .hio.app .page.p-mine .scr { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; align-items: start; }
+  .hio.app .page.p-mine :is(h1, .sub) { grid-column: 1 / -1; margin: 0 !important; }
+  .hio.app .page.p-mine .grow { display: none; }
+  .hio.app .page.p-mine .mine { margin: 0 !important; }
+  .hio.app .page.p-mine .scr > div:last-of-type { grid-column: 1 / -1; max-width: 320px; }
+  .hio.app .page.p-status .scr { max-width: 860px; margin: 0 auto; background: #fff; border-radius: 32px; padding: 34px 44px 40px; box-shadow: 0 4px 14px rgba(52, 43, 96, .08); }
+  .hio.app .page.p-status .rb { background: var(--bg); box-shadow: none; }
+  .hio.app .page.p-status .ba { grid-template-columns: 1fr 1fr; }
+  .hio.app .page.p-status .ba div { min-height: 280px; }
+  .hio.app .page.p-account .scr { max-width: 860px; margin: 0 auto; }
+  .hio.app .page.p-account .prof { margin: 0; border-radius: 32px; padding: 24px 28px 30px; }
+  .hio.app .page.p-account .prof .homebar .lng { display: none; }
+  .hio.app .page.p-account .lv > svg { width: 420px; display: block; margin: 10px auto 0; }
+  .hio.app .page.p-account .go { max-width: 320px; }
+  .hio.app .page.p-account .txt { max-width: 320px; }
+  .hio.app .page.p-done .scr { max-width: 620px; margin: 0 auto; border-radius: 36px; padding: 44px 52px; }
+  .hio.app .page.p-done .stamp { margin-top: 0; }
+  .hio.app .page.p-done .foot { justify-content: center; }
+
+  /* the signing window in the middle */
+  .hio.app .sheet { bottom: auto; top: 50%; translate: 0 -50%; border-radius: 32px; padding: 26px 32px 30px; width: 460px; animation: none; }
+  .hio.app .sheet::before { display: none; }
+  .hio.app .sheet .go { width: 100%; }
+}
+
+@media (min-width: 960px) and (max-width: 1179px) {
+  .hio.app .bar { gap: 12px; }
+  .hio.app .bar nav button { padding: 0 12px; }
+  .hio.app .bar nav svg { display: none; }
+  .hio.app .page.p-home .scr { grid-template-columns: minmax(0, 1fr) 300px; column-gap: 24px; }
+  .hio.app .home.home:not(.page) { grid-template-columns: repeat(2, minmax(0, 1fr)); grid-auto-rows: 210px; }
+  .hio.app .page.p-map .scr { grid-template-columns: minmax(0, 1fr) 330px; }
+  .hio.app .page.p-form { grid-template-columns: 250px minmax(0, 1fr); gap: 22px; }
+}
