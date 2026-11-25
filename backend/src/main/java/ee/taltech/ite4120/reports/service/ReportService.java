@@ -5,6 +5,9 @@ import ee.taltech.ite4120.reports.addressregister.AddressRegisterAdapter;
 import ee.taltech.ite4120.reports.addressregister.AddressRegisterException;
 import ee.taltech.ite4120.reports.dto.ReportQueryParams;
 import ee.taltech.ite4120.reports.model.Category;
+import ee.taltech.ite4120.reports.model.Forwarding;
+import ee.taltech.ite4120.reports.model.Place;
+import ee.taltech.ite4120.reports.model.Recipient;
 import ee.taltech.ite4120.reports.model.Report;
 import ee.taltech.ite4120.reports.model.ReportStatus;
 import ee.taltech.ite4120.reports.model.Reporter;
@@ -46,10 +49,13 @@ public class ReportService {
     private final ReporterRepository reporters;
     private final ReportLimits limits;
     private final KeyedHash hash;
+    private final RecipientFinder recipients;
     private final TransactionTemplate transaction;
 
     public ReportService(ReportRepository repository, AddressRegisterAdapter addressRegister, ReportAccess access,
-            ReporterRepository reporters, ReportLimits limits, KeyedHash hash, PlatformTransactionManager transactions) {
+            ReporterRepository reporters, ReportLimits limits, KeyedHash hash, RecipientFinder recipients,
+            PlatformTransactionManager transactions) {
+        this.recipients = recipients;
         this.reporters = reporters;
         this.limits = limits;
         this.hash = hash;
@@ -101,7 +107,10 @@ public class ReportService {
     }
 
     /** The place at a map point. Unlike a submit, this has nothing to fall back to, so it fails. */
-    public AddressInfo place(BigDecimal latitude, BigDecimal longitude) {
+    public Place place(BigDecimal latitude, BigDecimal longitude, String categoryCode) {
+        if (categoryCode != null) {
+            requireKnownCategory(categoryCode);
+        }
         if (latitude.abs().compareTo(BigDecimal.valueOf(90)) > 0 || longitude.abs().compareTo(BigDecimal.valueOf(180)) > 0) {
             throw new ApiClientException("latitude or longitude is out of range");
         }
@@ -109,7 +118,10 @@ public class ReportService {
         if (place == null) {
             throw new NotFoundException("no municipality at this point");
         }
-        return place;
+        Recipient recipient = categoryCode == null ? null
+                : recipients.find(repository.category(categoryCode), place.municipalityName(), latitude, longitude);
+        return new Place(place.fullAddress(), place.municipalityCode(), place.municipalityName(),
+                recipient == null ? null : recipient.kind(), recipient == null ? null : recipient.name());
     }
 
     /**
@@ -180,6 +192,37 @@ public class ReportService {
         return require(report.getReferenceNumber());
     }
 
+    /** Sends the report to another recipient. The resident sees where and why. */
+    @Transactional
+    public Report forward(String referenceNumber, String kind, String name, String reason) {
+        access.requireCoordinator();
+        boolean state = "STATE_ROADS".equals(kind);
+        if (!state && !"MUNICIPALITY".equals(kind) && !"OTHER".equals(kind)) {
+            throw new ApiClientException("kind must be STATE_ROADS, MUNICIPALITY or OTHER");
+        }
+        String toName = state ? Recipient.STATE_ROADS_NAME : blankToNull(name);
+        if (toName == null) {
+            throw new ApiClientException("name is required for " + kind);
+        }
+        Report report = require(referenceNumber);
+        if (ReportStatus.valueOf(report.getStatus()).isClosed()) {
+            throw new ConflictException("report", "a report that is " + report.getStatus() + " cannot be forwarded");
+        }
+        if (toName.equals(report.getRecipientName())) {
+            throw new ConflictException("report", "the report is already with " + toName);
+        }
+        if (!repository.updateRecipient(report, kind, toName)) {
+            throw new ConflictException("report", "the report was changed meanwhile, reload it");
+        }
+        repository.insertForwarding(report, kind, toName, reason.trim());
+        return require(report.getReferenceNumber());
+    }
+
+    public List<Forwarding> forwardings(String referenceNumber) {
+        List<Forwarding> all = repository.forwardings(require(referenceNumber).getId());
+        return access.isCoordinator() ? all : all.stream().map(Forwarding::forResident).toList();
+    }
+
     public List<StatusChange> history(String referenceNumber) {
         access.requireCoordinator();
         return repository.history(require(referenceNumber).getId());
@@ -217,6 +260,10 @@ public class ReportService {
             report.setMunicipalityCode(place.municipalityCode());
             report.setMunicipalityName(place.municipalityName());
         }
+        Recipient recipient = recipients.find(repository.category(report.getCategoryCode()),
+                report.getMunicipalityName(), report.getLatitude(), report.getLongitude());
+        report.setRecipientKind(recipient.kind().name());
+        report.setRecipientName(recipient.name());
     }
 
     private static AddressInfo ask(Supplier<AddressInfo> question) {

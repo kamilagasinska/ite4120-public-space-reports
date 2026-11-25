@@ -14,6 +14,10 @@ public enum ReportStatus {
         };
     }
 
+    public boolean isClosed() {
+        return this == RESOLVED || this == REJECTED;
+    }
+
     public static boolean isKnown(String name) {
         return Arrays.stream(values()).anyMatch(s -> s.name().equals(name));
     }

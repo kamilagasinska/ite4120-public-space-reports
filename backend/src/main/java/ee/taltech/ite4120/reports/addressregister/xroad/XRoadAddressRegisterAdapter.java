@@ -1,53 +1,54 @@
 package ee.taltech.ite4120.reports.addressregister.xroad;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import ee.taltech.ite4120.reports.addressregister.AddressInfo;
 import ee.taltech.ite4120.reports.addressregister.AddressMapper;
 import ee.taltech.ite4120.reports.addressregister.AddressRegisterAdapter;
 import ee.taltech.ite4120.reports.addressregister.AddressRegisterException;
 import ee.taltech.ite4120.reports.addressregister.LEst97;
+import ee.taltech.ite4120.reports.addressregister.http.wire.AdsGazetteerResponse;
 import ee.taltech.ite4120.reports.addressregister.wire.AdsAadress;
-import ee.taltech.ite4120.reports.addressregister.xroad.wire.AdsAadressParing;
-import ee.taltech.ite4120.reports.addressregister.xroad.wire.AdsAadressParingResponse;
-import java.net.URI;
+import ee.taltech.ite4120.reports.xroad.XRoadRest;
+import ee.taltech.ite4120.reports.xroad.XRoadRest.XRoadException;
+import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.List;
-import org.helex.forge.xroad.XRoadClient;
-import org.helex.forge.xroad.XRoadClientConfig;
-import org.helex.forge.xroad.XRoadClientId;
-import org.helex.forge.xroad.XRoadException;
-import org.helex.forge.xroad.XRoadServiceId;
 
 /**
- * The X-Road transport on the forge-xroad library. The course has no security server,
- * so this is a skeleton that fails fast with a clear error.
+ * The address register over the X-Road message protocol for REST. The member code and
+ * the subsystem are those of the real register. The shape of the answer is the public
+ * gazetteer's, a stand-in until the service description is read from a security server.
  */
 public class XRoadAddressRegisterAdapter implements AddressRegisterAdapter {
 
-    private final XRoadClient client;
-    private final XRoadServiceId service;
+    private final XRoadRest xroad;
+    private final String service;
+    private final ObjectMapper json = new ObjectMapper();
 
-    public XRoadAddressRegisterAdapter(String securityServerUrl, XRoadClientId clientId, XRoadServiceId service) {
-        this.client = new XRoadClient(new XRoadClientConfig(
-                URI.create(securityServerUrl), clientId, "ITE4120", Duration.ofSeconds(3)));
+    public XRoadAddressRegisterAdapter(String securityServerUrl, String client, String service) {
+        this.xroad = new XRoadRest(securityServerUrl, client, Duration.ofSeconds(4));
         this.service = service;
     }
 
     @Override
     public AddressInfo lookup(String address) {
-        return AddressMapper.toAddressInfo(ask(AdsAadressParing.of(address)));
+        return AddressMapper.toAddressInfo(ask("address=" + URLEncoder.encode(address, StandardCharsets.UTF_8)));
     }
 
     @Override
     public AddressInfo lookupPoint(double latitude, double longitude) {
         double[] p = LEst97.fromDegrees(latitude, longitude);
-        return AddressMapper.toPlace(ask(AdsAadressParing.ofPoint(Math.round(p[0]), Math.round(p[1]))));
+        return AddressMapper.toPlace(ask("x=" + Math.round(p[0]) + "&y=" + Math.round(p[1])));
     }
 
-    private List<AdsAadress> ask(AdsAadressParing request) {
+    private List<AdsAadress> ask(String query) {
         try {
-            AdsAadressParingResponse wire = client.send(service, request, AdsAadressParingResponse.class).body();
-            return wire == null ? null : wire.aadressid();
-        } catch (XRoadException e) {
+            AdsGazetteerResponse wire = json.readValue(
+                    xroad.get(service, "gazetteer?" + query).body(), AdsGazetteerResponse.class);
+            return wire == null ? null : wire.addresses();
+        } catch (XRoadException | IOException e) {
             throw new AddressRegisterException("X-Road call failed: " + e.getMessage(), e);
         }
     }

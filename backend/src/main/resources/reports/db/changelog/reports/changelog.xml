@@ -14,5 +14,6 @@
   <include file="reports/db/changelog/reports/04-reporter.sql"/>
   <include file="reports/db/changelog/reports/05-report-identity.sql"/>
   <include file="reports/db/changelog/reports/06-signing.sql"/>
+  <include file="reports/db/changelog/reports/07-recipient.sql"/>
 
 </databaseChangeLog>

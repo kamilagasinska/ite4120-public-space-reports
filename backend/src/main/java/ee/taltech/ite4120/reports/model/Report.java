@@ -9,6 +9,8 @@ import java.time.OffsetDateTime;
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class Report {
 
+    private String recipientKind;
+    private String recipientName;
     private String municipalityCode;
     private String municipalityName;
     private String channel;
@@ -116,4 +118,8 @@ public class Report {
     public void setIpHash(String ipHash) { this.ipHash = ipHash; }
     public String getSignedDigest() { return signedDigest; }
     public void setSignedDigest(String signedDigest) { this.signedDigest = signedDigest; }
+    public String getRecipientKind() { return recipientKind; }
+    public void setRecipientKind(String recipientKind) { this.recipientKind = recipientKind; }
+    public String getRecipientName() { return recipientName; }
+    public void setRecipientName(String recipientName) { this.recipientName = recipientName; }
 }

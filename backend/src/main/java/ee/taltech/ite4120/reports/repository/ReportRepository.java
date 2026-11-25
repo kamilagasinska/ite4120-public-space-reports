@@ -2,6 +2,7 @@ package ee.taltech.ite4120.reports.repository;
 
 import ee.taltech.ite4120.reports.dto.ReportQueryParams;
 import ee.taltech.ite4120.reports.model.Category;
+import ee.taltech.ite4120.reports.model.Forwarding;
 import ee.taltech.ite4120.reports.model.Report;
 import ee.taltech.ite4120.reports.model.StatusChange;
 import java.util.List;
@@ -36,6 +37,7 @@ public class ReportRepository extends BaseRepository {
 
     private final PgBeanProcessor bp = new PgBeanProcessor(Report.class);
     private final PgBeanProcessor categoryBp = new PgBeanProcessor(Category.class);
+    private final PgBeanProcessor forwardingBp = new PgBeanProcessor(Forwarding.class);
     private final PgBeanProcessor statusChangeBp = new PgBeanProcessor(StatusChange.class);
 
     public Report loadByReferenceNumber(String referenceNumber) {
@@ -100,13 +102,15 @@ public class ReportRepository extends BaseRepository {
         String sql = """
                 insert into reports.report (reference_number, category_code, address, address_code, address_verified,
                                             latitude, longitude, description, reporter_contact, submission_key,
-                                            municipality_code, municipality_name, channel, reporter_id, ip_hash, signed_digest)
-                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                            municipality_code, municipality_name, channel, reporter_id, ip_hash, signed_digest,
+                                            recipient_kind, recipient_name)
+                values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 returning id""";
         return queryForObject(sql, Long.class, r.getReferenceNumber(), r.getCategoryCode(), r.getAddress(),
                 r.getAddressCode(), r.getAddressVerified(), r.getLatitude(), r.getLongitude(),
                 r.getDescription(), r.getReporterContact(), r.getSubmissionKey(), r.getMunicipalityCode(),
-                r.getMunicipalityName(), r.getChannel(), r.getReporterId(), r.getIpHash(), r.getSignedDigest());
+                r.getMunicipalityName(), r.getChannel(), r.getReporterId(), r.getIpHash(), r.getSignedDigest(),
+                r.getRecipientKind(), r.getRecipientName());
     }
 
     /** Changes the status only if it is still the expected one, so two coordinators cannot overwrite each other. */
@@ -125,6 +129,27 @@ public class ReportRepository extends BaseRepository {
     public List<StatusChange> history(Long reportId) {
         return getBeans("select s.* from reports.status_change s "
                 + "where s.report_id = ? and s.sys_status = 'A' order by s.id", statusChangeBp, reportId);
+    }
+
+    /** Changes the recipient only if nobody else did and the report is still open. */
+    public boolean updateRecipient(Report r, String kind, String name) {
+        return jdbcTemplate.update("update reports.report set recipient_kind = ?, recipient_name = ? "
+                + "where id = ? and recipient_name = ? and status in ('RECEIVED', 'IN_PROGRESS') and sys_status = 'A'",
+                kind, name, r.getId(), r.getRecipientName()) == 1;
+    }
+
+    public void insertForwarding(Report from, String kind, String name, String reason) {
+        jdbcTemplate.update("insert into reports.forwarding (report_id, from_name, to_kind, to_name, reason) "
+                + "values (?, ?, ?, ?, ?)", from.getId(), from.getRecipientName(), kind, name, reason);
+    }
+
+    public List<Forwarding> forwardings(Long reportId) {
+        return getBeans("select f.* from reports.forwarding f "
+                + "where f.report_id = ? and f.sys_status = 'A' order by f.id", forwardingBp, reportId);
+    }
+
+    public Category category(String code) {
+        return getBean("select c.* from reports.category c where c.code = ?", categoryBp, code);
     }
 
     public List<Category> categories() {
