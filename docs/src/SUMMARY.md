@@ -9,5 +9,8 @@
 - [User story · ANIMALS-US-001](user-stories/ANIMALS-US-001.md)
 - [User story · REPORTS-US-001](user-stories/REPORTS-US-001.md)
 - [User story · REPORTS-US-002](user-stories/REPORTS-US-002.md)
+- [User story · REPORTS-US-003](user-stories/REPORTS-US-003.md)
+- [User story · REPORTS-US-004](user-stories/REPORTS-US-004.md)
+- [User story · REPORTS-US-005](user-stories/REPORTS-US-005.md)
 - [Specification · ANIMALS.01](specifications/ANIMALS.01-animal-register.md)
 - [Specification · REPORTS.01](specifications/REPORTS.01-public-space-reports.md)
