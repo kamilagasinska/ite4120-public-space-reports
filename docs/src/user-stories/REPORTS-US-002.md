@@ -1,9 +1,9 @@
 # REPORTS-US-002 · Review and prioritise incoming reports
 
-> **REPORTS-US-002** · state **Proposed**
+> **REPORTS-US-002** · state **Proposed** · traces to [REPORTS.01](../specifications/REPORTS.01-public-space-reports.md)
 
 **As** a municipal maintenance coordinator
-**I want** to see all incoming reports in one place, with their category, location, status and how long they have been open
+**I want** to see all incoming reports in one place, with their category, address, status and how long they have been open
 **so that** I can decide which problems to send a crew to first, and spot the ones that have been waiting too long.
 
 ## Context
@@ -17,7 +17,7 @@ Out of scope: assigning work to individual crews, scheduling, cost tracking, and
 ## Acceptance criteria
 
 - The coordinator can list all reports and filter them by category and by status.
-- Each report in the list shows its reference number, category, location, status and the number of days since it was submitted.
+- Each report in the list shows its reference number, category, address, status and the number of days since it was submitted.
 - The coordinator can change a report's status from Received to In progress, from In progress to Resolved, or from Received to Rejected.
 - Rejecting a report requires a reason; a rejection without a reason is refused.
 - Any other status change (for example Resolved back to Received) is refused.
