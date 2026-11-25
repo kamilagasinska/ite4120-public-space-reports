@@ -49,7 +49,9 @@ class ReportRoutingRulesIT {
     private static volatile String near;
     private static volatile String far;
     private static volatile int roadStatus;
+    private static final String SERVICES = "{\"service\":[{\"service_code\":\"TEST\"},{\"service_code\":\"PTV\"}]}";
     private static volatile int xroadStatus;
+    private static volatile String playgroundBody;
     private static volatile String lastClient;
     private static volatile String lastPath;
     private static volatile String lastId;
@@ -78,6 +80,7 @@ class ReportRoutingRulesIT {
         far = HIGHWAY;
         roadStatus = 200;
         xroadStatus = 200;
+        playgroundBody = SERVICES;
         jdbc.update("update reports.report set ip_hash = null");
     }
 
@@ -174,6 +177,15 @@ class ReportRoutingRulesIT {
         Answer up = get(COORDINATOR, "/api/reports/xroad-status");
         assertThat(up.text("available")).isEqualTo("true");
         assertThat(up.text("messageId")).isEqualTo("PLAYGROUND-1");
+        assertThat(up.text("requestHash")).isEqualTo("HASH-1");
+        assertThat(up.body.get("services").size()).isEqualTo(2);
+        assertThat(up.body.get("services").get(0).asText()).isEqualTo("TEST");
+
+        playgroundBody = "<html>a page, not X-Road</html>";
+        Answer strange = get(COORDINATOR, "/api/reports/xroad-status");
+        assertThat(strange.status).isEqualTo(200);
+        assertThat(strange.text("available")).isEqualTo("false");
+        assertThat(strange.text("detail")).contains("not a list of services");
 
         xroadStatus = 500;
         Answer down = get(COORDINATOR, "/api/reports/xroad-status");
@@ -245,7 +257,8 @@ class ReportRoutingRulesIT {
                     answer(x, xroadStatus, "{\"type\":\"Server.ServerProxy.ServiceDown\",\"message\":\"down\"}");
                 } else if (lastPath.startsWith("/r1/PLAYGROUND/")) {
                     x.getResponseHeaders().add("x-road-id", "PLAYGROUND-1");
-                    answer(x, 200, "{\"service\":[]}");
+                    x.getResponseHeaders().add("x-road-request-hash", "HASH-1");
+                    answer(x, 200, playgroundBody);
                 } else {
                     answer(x, 200, "{\"addresses\":[{\"ads_oid\":\"KY1\",\"taisaadress\":\"Harju maakond, Saue vald, Toonekure\","
                             + "\"ehakov\":\"725\",\"omavalitsus\":\"Saue vald\"}]}");
