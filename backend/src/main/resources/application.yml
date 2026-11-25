@@ -50,3 +50,12 @@ animals:
     url: http://localhost:18440/mock-registry
     # The built-in imitated registry; enabled only in the local profile.
     mock-server: false
+
+reports:
+  # User names with the coordinator role. Empty means nobody, the API fails closed.
+  coordinators: ""
+  address-register:
+    # http (default) or xroad, as for the owner registry above.
+    mode: http
+    url: http://localhost:18440/mock-registry/ads
+    mock-server: false

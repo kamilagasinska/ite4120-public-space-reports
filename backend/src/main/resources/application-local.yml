@@ -7,3 +7,8 @@ auth:
 animals:
   owner-registry:
     mock-server: true      # this app serves /mock-registry itself — works offline
+
+reports:
+  coordinators: coordinator
+  address-register:
+    mock-server: true      # this app serves /mock-registry/ads itself

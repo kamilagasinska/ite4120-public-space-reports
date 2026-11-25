@@ -4,9 +4,11 @@ import ee.taltech.ite4120.animals.ownerregistry.OwnerRegistryException;
 import org.helex.commons.exception.ApiClientException;
 import org.helex.commons.exception.ApiException;
 import org.helex.commons.exception.ConflictException;
+import org.helex.commons.exception.ForbiddenException;
 import org.helex.commons.exception.NotFoundException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -36,6 +38,22 @@ public class ApiErrorHandler {
     public ProblemDetail clientError(ApiClientException e) {
         ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
         pd.setTitle("Invalid request");
+        pd.setDetail(detail(e));
+        return pd;
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ProblemDetail unreadableBody(HttpMessageNotReadableException e) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.BAD_REQUEST);
+        pd.setTitle("Invalid request");
+        pd.setDetail("request body cannot be read");
+        return pd;
+    }
+
+    @ExceptionHandler(ForbiddenException.class)
+    public ProblemDetail forbidden(ForbiddenException e) {
+        ProblemDetail pd = ProblemDetail.forStatus(HttpStatus.FORBIDDEN);
+        pd.setTitle("Forbidden");
         pd.setDetail(detail(e));
         return pd;
     }
