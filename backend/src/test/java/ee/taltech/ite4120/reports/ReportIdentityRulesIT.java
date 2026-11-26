@@ -76,6 +76,7 @@ class ReportIdentityRulesIT {
         jdbc.update("delete from reports.signing");
         jdbc.update("delete from reports.sighting");
         jdbc.update("delete from reports.status_change");
+        jdbc.update("delete from reports.handover");
         jdbc.update("delete from reports.report");
         jdbc.update("delete from reports.reporter");
     }

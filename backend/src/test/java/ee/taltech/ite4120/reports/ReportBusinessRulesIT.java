@@ -284,6 +284,10 @@ class ReportBusinessRulesIT {
 
     /** The inbox address of the unit the report was handed to, which is also its mock user. */
     private String unit(String reference) {
+        if (get(COORDINATOR, "/api/reports/" + reference).text("handoverInbox").isEmpty()) {
+            post(COORDINATOR, "/api/reports/" + reference + "/forward", json.createObjectNode().put("kind", "MUNICIPALITY")
+                    .put("name", "Tallinn, Environment Department").put("reason", "Known city").toString());
+        }
         return get(COORDINATOR, "/api/reports/" + reference).text("handoverInbox");
     }
 

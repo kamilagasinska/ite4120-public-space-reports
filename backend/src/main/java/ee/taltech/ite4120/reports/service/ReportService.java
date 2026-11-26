@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 import java.util.regex.Pattern;
 import org.helex.commons.exception.ApiClientException;
 import org.helex.commons.exception.ConflictException;
+import org.helex.commons.exception.ForbiddenException;
 import org.helex.commons.exception.NotFoundException;
 import org.helex.commons.model.QueryResult;
 import org.slf4j.Logger;
@@ -52,10 +53,12 @@ public class ReportService {
     private final KeyedHash hash;
     private final RecipientFinder recipients;
     private final TransactionTemplate transaction;
+    private final HandoverService handovers;
 
     public ReportService(ReportRepository repository, AddressRegisterAdapter addressRegister, ReportAccess access,
             ReporterRepository reporters, ReportLimits limits, KeyedHash hash, RecipientFinder recipients,
-            PlatformTransactionManager transactions) {
+            PlatformTransactionManager transactions, HandoverService handovers) {
+        this.handovers = handovers;
         this.recipients = recipients;
         this.reporters = reporters;
         this.limits = limits;
@@ -77,6 +80,7 @@ public class ReportService {
 
     public Report find(String referenceNumber) {
         Report report = require(referenceNumber);
+        handovers.opened(report);
         if (access.isCoordinator() && report.getReporterId() != null) {
             int[] counts = repository.senderCounts(report.getReporterId());
             report.setSender(counts[0], counts[1], standing(report.getReporterId()).points());
@@ -197,7 +201,9 @@ public class ReportService {
     @Transactional
     public Report changeStatus(String referenceNumber, String toStatus, String reason, boolean falseReport,
             boolean publish) {
-        access.requireCoordinator();
+        if (!access.isCoordinator() && access.unit() == null) {
+            throw new ForbiddenException("only a coordinator or a unit may do this");
+        }
         if (!ReportStatus.isKnown(toStatus)) {
             throw new ApiClientException("unknown toStatus: " + toStatus);
         }
@@ -206,6 +212,13 @@ public class ReportService {
         ReportStatus to = ReportStatus.valueOf(toStatus);
         if (!from.canBecome(to)) {
             throw new ConflictException("report", "status cannot change from " + from + " to " + to);
+        }
+        boolean solving = to == ReportStatus.IN_PROGRESS || to == ReportStatus.RESOLVED;
+        if (solving && !access.isUnitOf(report)) {
+            throw new ForbiddenException("only the unit the report was handed to may do this");
+        }
+        if (!solving && !access.isCoordinator()) {
+            throw new ForbiddenException("only a coordinator may do this");
         }
         String cleanReason = blankToNull(reason);
         if (to == ReportStatus.REJECTED && cleanReason == null) {
@@ -224,7 +237,10 @@ public class ReportService {
         if (publish || to == ReportStatus.REJECTED) {
             repository.setPublished(report.getId(), publish);
         }
-        return require(report.getReferenceNumber());
+        if (to == ReportStatus.ACCEPTED) {
+            handovers.handOver(require(report.getReferenceNumber()));
+        }
+        return visible(require(report.getReferenceNumber()));
     }
 
     /** Sends the report to another recipient. The resident sees where and why. */
@@ -250,7 +266,12 @@ public class ReportService {
             throw new ConflictException("report", "the report was changed meanwhile, reload it");
         }
         repository.insertForwarding(report, kind, toName, reason.trim());
-        return require(report.getReferenceNumber());
+        Report forwarded = require(report.getReferenceNumber());
+        if (!"RECEIVED".equals(forwarded.getStatus())) {
+            handovers.handOver(forwarded);
+            forwarded = require(report.getReferenceNumber());
+        }
+        return forwarded;
     }
 
     public List<Forwarding> forwardings(String referenceNumber) {
@@ -276,7 +297,7 @@ public class ReportService {
     }
 
     private Report visible(Report report) {
-        return access.isCoordinator() ? report : report.forResident();
+        return access.isStaffOf(report) ? report : report.forResident();
     }
 
     private Report bySubmissionKey(String key) {

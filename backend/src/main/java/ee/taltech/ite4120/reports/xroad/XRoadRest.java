@@ -35,12 +35,24 @@ public class XRoadRest {
 
     /** The service is INSTANCE/CLASS/MEMBER/SUBSYSTEM/SERVICE. */
     public Answer get(String service, String path) throws XRoadException {
-        HttpRequest request = HttpRequest.newBuilder(URI.create(securityServer + "/r1/" + service + "/" + path))
+        return send(builder(securityServer + "/r1/" + service + "/" + path).GET().build());
+    }
+
+    /** Sends a JSON body to the service itself, INSTANCE/CLASS/MEMBER/SUBSYSTEM/SERVICE. */
+    public Answer post(String service, String json) throws XRoadException {
+        return send(builder(securityServer + "/r1/" + service).header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(json)).build());
+    }
+
+    private HttpRequest.Builder builder(String url) {
+        return HttpRequest.newBuilder(URI.create(url))
                 .timeout(timeout)
                 .header("X-Road-Client", client)
                 .header("X-Road-Id", UUID.randomUUID().toString())
-                .header("Accept", "application/json")
-                .GET().build();
+                .header("Accept", "application/json");
+    }
+
+    private Answer send(HttpRequest request) throws XRoadException {
         try {
             HttpResponse<String> r = http.send(request, HttpResponse.BodyHandlers.ofString());
             String fault = r.headers().firstValue("X-Road-Error").orElse(null);

@@ -35,8 +35,13 @@ public class ReportRepository extends BaseRepository {
             + "and m.sys_status = 'A') as reminders, "
             + "(select 1 + count(*)::int from reports.sighting g where g.report_id = r.id and g.sys_status = 'A') as seen_by, "
             + "case when not " + ANSWERED + " then (r.sys_created_at + interval '15 days')::date end as respond_by, "
-            + "case when not " + ANSWERED + " then 15 - " + DAYS_OPEN + " end as days_to_respond "
-            + "from reports.report r join reports.category c on c.code = r.category_code ";
+            + "case when not " + ANSWERED + " then 15 - " + DAYS_OPEN + " end as days_to_respond, "
+            + "h.id as handover_id, h.unit as handover_unit, h.sys_created_at as handed_at, h.inbox as handover_inbox, "
+            + "h.service as handover_service, h.state as handover_state, h.message_id as handover_message_id, "
+            + "coalesce(h.return_reason, h.detail) as handover_reason "
+            + "from reports.report r join reports.category c on c.code = r.category_code "
+            + "left join lateral (select h.* from reports.handover h where h.report_id = r.id and h.sys_status = 'A' "
+            + "order by h.id desc limit 1) h on true ";
 
     private static final Map<String, String> SORT = Map.of(
             "referenceNumber", "r.reference_number",
@@ -61,6 +66,26 @@ public class ReportRepository extends BaseRepository {
 
     public void setPublished(Long id, boolean published) {
         jdbcTemplate.update("update reports.report set published = ? where id = ? and published <> ?", published, id, published);
+    }
+
+    /** The open reports whose last handover went to this inbox and was not returned. */
+    public List<Report> handedTo(String inbox) {
+        return getBeans(SELECT + "where r.sys_status = 'A' and h.inbox = ? and h.state in ('SENT', 'OPENED') "
+                + "and r.status in ('ACCEPTED', 'IN_PROGRESS', 'RESOLVED') order by r.status = 'RESOLVED', r.sys_created_at, r.id",
+                bp, inbox);
+    }
+
+    public void insertHandover(Long reportId, String recipientName, String unit, String inbox, String channel,
+            String service, String state, String messageId, String detail) {
+        jdbcTemplate.update("insert into reports.handover (report_id, recipient_name, unit, inbox, channel, service, "
+                + "state, message_id, detail) values (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                reportId, recipientName, unit, inbox, channel, service, state, messageId, detail);
+    }
+
+    /** Moves a handover on only from one of the expected states. */
+    public boolean updateHandover(Long id, String state, String returnReason, String... from) {
+        return jdbcTemplate.update("update reports.handover set state = ?, return_reason = coalesce(?, return_reason) "
+                + "where id = ? and state = any(?) and sys_status = 'A'", state, returnReason, id, from) == 1;
     }
 
     public Report loadBySubmissionKey(String key) {

@@ -183,7 +183,8 @@ accepted report is handed over to it.
 1. When the coordinator accepts a report, the application hands it to the recipient
    through a **unit channel**. Forwarding an accepted report and reopening a resolved one
    hand it over again, to the current recipient. A report whose recipient is
-   "coordinator decides" is forwarded first, accepting it is 409.
+   "coordinator decides" has no unit yet. It can be accepted, and is handed over when the
+   coordinator forwards it.
 2. The unit channel is an adapter (`reports.unit-channel.mode`). `xroad` sends the report
    as an X-Road message (protocol for REST, `POST`) from our client subsystem to the
    service `receiveReport` of the subsystem `reports-inbox` of the recipient. Locally it

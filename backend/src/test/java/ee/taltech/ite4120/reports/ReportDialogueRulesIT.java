@@ -53,7 +53,7 @@ class ReportDialogueRulesIT {
 
     @BeforeEach
     void cleanSlate() {
-        for (String table : new String[] {"signing", "sighting", "photo", "message", "forwarding", "status_change", "report", "reporter"}) {
+        for (String table : new String[] {"signing", "sighting", "photo", "message", "forwarding", "status_change", "handover", "report", "reporter"}) {
             jdbc.update("delete from reports." + table);
         }
     }
@@ -385,6 +385,10 @@ class ReportDialogueRulesIT {
 
     /** The inbox address of the unit the report was handed to, which is also its mock user. */
     private String unit(Sent s) {
+        if (get(COORDINATOR, "/api/reports/" + s.reference).text("handoverInbox").isEmpty()) {
+            post(COORDINATOR, "/api/reports/" + s.reference + "/forward", json.createObjectNode().put("kind", "MUNICIPALITY")
+                    .put("name", "Tallinn, Environment Department").put("reason", "Known city"), null);
+        }
         return get(COORDINATOR, "/api/reports/" + s.reference).text("handoverInbox");
     }
 
