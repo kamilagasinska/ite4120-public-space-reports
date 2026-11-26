@@ -1,6 +1,6 @@
 # REPORTS.01 · Public space reports
 
-> **REPORTS.01** · state **Agreed** (revision 4, categories, photos, public map and dialogue) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
+> **REPORTS.01** · state **Draft** (revision 5, handover to the responsible unit; revision 4 agreed) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
 > and [REPORTS-US-002](../user-stories/REPORTS-US-002.md)
 
 ## Description
@@ -41,7 +41,8 @@ sign-in of coordinators (mock auth only).
 | Role | Who | May do |
 | --- | --- | --- |
 | Resident | any signed-in mock user | submit a report, look up a report by reference number, read the categories |
-| Coordinator | mock users listed in the configuration key `reports.coordinators` | everything a resident may, and also list and filter reports, open the report page with the contact, change status, see history |
+| Coordinator | mock users listed in the configuration key `reports.coordinators` | everything a resident may, and also list and filter reports, open the report page with the contact, accept, reject and forward, see history |
+| Unit | a mock user named as the inbox address of a unit | list and open the reports handed to it, set IN_PROGRESS and RESOLVED, write updates, add photos of the result, return a report |
 
 A resident calling a coordinator endpoint gets 403. The status lookup by reference
 number never returns the contact to a resident.
@@ -138,9 +139,9 @@ cue. The background is the map of the Estonian Land and Spatial Development Boar
 | Step for the resident | Meaning |
 | --- | --- |
 | Reported | RECEIVED |
-| Accepted | ACCEPTED, the coordinator has confirmed it |
-| In progress | IN_PROGRESS |
-| Update | a message of the coordinator, with a day to expect something |
+| Accepted | ACCEPTED, the coordinator has confirmed it and handed it to the unit |
+| In progress | IN_PROGRESS, set by the unit |
+| Update | a message of the coordinator or the unit, with a day to expect something |
 | Done | RESOLVED, with photos of the result, or REJECTED with the reason |
 
 The resident sees how many days are left for the first answer, 15 days from sending,
@@ -173,6 +174,42 @@ general name, because no open list of municipal departments was found. The resid
 the recipient before sending and afterwards. If the recipient says the report is not
 theirs, the coordinator forwards it with a reason, and the resident sees where it went
 and why. In this course nothing is delivered to a real authority.
+
+## Handover to the unit
+
+The coordinator only checks reports. Solving is the work of the responsible unit, so an
+accepted report is handed over to it.
+
+1. When the coordinator accepts a report, the application hands it to the recipient
+   through a **unit channel**. Forwarding an accepted report and reopening a resolved one
+   hand it over again, to the current recipient. A report whose recipient is
+   "coordinator decides" is forwarded first, accepting it is 409.
+2. The unit channel is an adapter (`reports.unit-channel.mode`). `xroad` sends the report
+   as an X-Road message (protocol for REST, `POST`) from our client subsystem to the
+   service `receiveReport` of the subsystem `reports-inbox` of the recipient. Locally it
+   goes to the imitated security server of this application, which delivers it to an
+   imitated inbox of the unit and answers with an X-Road message id. `outbox` only stores
+   the handover. A real version needs a real security server and a recipient that
+   offers such a service, the rest stays.
+3. The X-Road Playground cannot be used here, as it only offers its own test services
+   and we are not a member who can register one.
+4. The handover keeps the unit, its inbox address, the X-Road service, the message id and
+   a state: SENT, OPENED by the unit, RETURNED by the unit with a reason, or FAILED when
+   the channel did not answer. A failed handover does not undo the acceptance, the
+   coordinator sees it and sends it again.
+5. A unit worker signs in with a mock sign-in as the inbox address of the unit, for
+   example `roads@tallinn.example`. The unit sees only the reports handed to it, and
+   may set IN_PROGRESS, write an update for the resident, add photos of the result, set
+   RESOLVED, or return the report as not theirs with a reason. A returned report waits
+   for the coordinator, who forwards or rejects it.
+6. Only the unit of the current handover sets IN_PROGRESS and RESOLVED. The coordinator
+   accepts, rejects, forwards and watches the 15 days.
+7. The resident sees the unit and the day of the handover, never a user name or the
+   inbox address.
+
+The inbox addresses and X-Road member codes are invented from the recipient name
+(`roads@tallinn.example`, `ee-test/GOV/tallinn/reports-inbox/receiveReport`), because no
+open list of the units and their systems was found.
 
 ## Data model
 
@@ -242,8 +279,8 @@ and why. In this course nothing is delivered to a real authority.
 | | `report_id` | bigint | FK → report; set when SIGNED |
 | | `sys_*` | platform | trigger-managed |
 
-Allowed status changes are RECEIVED → ACCEPTED, RECEIVED or ACCEPTED → IN_PROGRESS,
-IN_PROGRESS → RESOLVED, RECEIVED or ACCEPTED → REJECTED, and RESOLVED → ACCEPTED by
+Allowed status changes are RECEIVED → ACCEPTED by the coordinator, ACCEPTED → IN_PROGRESS
+and IN_PROGRESS → RESOLVED by the unit of the current handover, RECEIVED or ACCEPTED → REJECTED, and RESOLVED → ACCEPTED by
 the sender. Any other change is refused.
 
 `status_change` records **post-creation transitions only**. Creating a report
@@ -452,6 +489,19 @@ DANGEROUS_OBJECT, PUBLIC_ORDER and OTHER.
     confirmed, when the second is opened by the coordinator, then it shows 2 reports, 10
     points and no false report, and nothing that names the sender. A resident does not see
     it, and a guest has no such numbers.
+37. **An accepted report is handed to the unit over X-Road.** Given the xroad channel, when
+    the coordinator accepts a report, then an X-Road message with our client, the service of
+    the recipient and the reference number is sent, and the coordinator sees the unit, the
+    inbox and the message id. The resident sees the unit, not the inbox.
+38. **Only the unit solves.** Given a handed report, when the coordinator sets IN_PROGRESS,
+    then 403. Another unit gets 403 and does not see the report in its list. The unit sets
+    IN_PROGRESS, adds a photo of the result, writes an update and sets RESOLVED.
+39. **The unit returns a report that is not theirs.** Given a handed report, when the unit
+    returns it without a reason, then 400; with a reason the handover is RETURNED and the
+    unit can no longer change it. Forwarding hands it to the new recipient.
+40. **A channel that does not answer does not undo the acceptance.** Given X-Road down,
+    when a report is accepted, then it is ACCEPTED and the handover FAILED. Sending again
+    when X-Road is back makes it SENT.
 
 ## Decisions
 

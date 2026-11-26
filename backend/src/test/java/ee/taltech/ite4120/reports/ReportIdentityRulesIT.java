@@ -153,7 +153,7 @@ class ReportIdentityRulesIT {
         assertProblem(report(device), 429, "try again");
 
         String other = report(UUID.randomUUID().toString()).text("referenceNumber");
-        assertProblem(change(other, "IN_PROGRESS", null, true), 400, "falseReport");
+        assertProblem(change(other, "ACCEPTED", null, true), 400, "falseReport");
     }
 
     /** 17. Changing the device does not remove every limit. */
@@ -293,6 +293,7 @@ class ReportIdentityRulesIT {
         String device = UUID.randomUUID().toString();
         for (int i = 0; i < 3; i++) {
             String reference = report(device).text("referenceNumber");
+            assertThat(change(reference, "ACCEPTED", null, false).status).isEqualTo(200);
             assertThat(change(reference, "IN_PROGRESS", null, false).status).isEqualTo(200);
             assertThat(change(reference, "RESOLVED", null, false).status).isEqualTo(200);
             age("25 hours");
@@ -323,7 +324,16 @@ class ReportIdentityRulesIT {
         if (reason != null) {
             node.put("reason", reason);
         }
-        return post(COORDINATOR, "/api/reports/" + reference + "/status", node, null);
+        return post(solving(to) ? unit(reference) : COORDINATOR, "/api/reports/" + reference + "/status", node, null);
+    }
+
+    private static boolean solving(String to) {
+        return "IN_PROGRESS".equals(to) || "RESOLVED".equals(to);
+    }
+
+    /** The inbox address of the unit the report was handed to, which is also its mock user. */
+    private String unit(String reference) {
+        return get(COORDINATOR, "/api/reports/" + reference).text("handoverInbox");
     }
 
     private ObjectNode body() {

@@ -40,3 +40,7 @@ of the check by hand are filled in by the person who did it. Run the automated t
 | 32 | The sender can say that the problem remains. | ReportDialogueRulesIT |  |  |  |
 | 33 | Points are given for confirmed and solved reports. | ReportDialogueRulesIT |  |  |  |
 | 34 | Others can say that they see it too. | ReportDialogueRulesIT |  |  |  |
+| 37 | An accepted report is handed to the unit over X-Road. | ReportHandoverRulesIT |  |  |  |
+| 38 | Only the unit solves. | ReportHandoverRulesIT |  |  |  |
+| 39 | The unit returns a report that is not theirs. | ReportHandoverRulesIT |  |  |  |
+| 40 | A channel that does not answer does not undo the acceptance. | ReportHandoverRulesIT |  |  |  |

@@ -179,8 +179,8 @@ class ReportDialogueRulesIT {
         assertProblem(remains(s, "Still there"), 409, "resolved");
         change(s, "ACCEPTED", null, true);
         change(s, "IN_PROGRESS", null, false);
-        assertThat(upload(COORDINATOR, "/api/reports/" + s.reference + "/photos", jpegWithGps(10, 10), null).status)
-                .as("the coordinator shows the result").isEqualTo(201);
+        assertThat(upload(unit(s), "/api/reports/" + s.reference + "/photos", jpegWithGps(10, 10), null).status)
+                .as("the unit shows the result").isEqualTo(201);
         change(s, "RESOLVED", null, false);
         assertThat(get("resident", "/api/reports/map/" + mapId()).body.findValuesAsText("kind")).containsExactly("AFTER");
 
@@ -376,7 +376,16 @@ class ReportDialogueRulesIT {
         if (reason != null) {
             node.put("reason", reason);
         }
-        return post(COORDINATOR, "/api/reports/" + s.reference + "/status", node, null);
+        return post(solving(to) ? unit(s) : COORDINATOR, "/api/reports/" + s.reference + "/status", node, null);
+    }
+
+    private static boolean solving(String to) {
+        return "IN_PROGRESS".equals(to) || "RESOLVED".equals(to);
+    }
+
+    /** The inbox address of the unit the report was handed to, which is also its mock user. */
+    private String unit(Sent s) {
+        return get(COORDINATOR, "/api/reports/" + s.reference).text("handoverInbox");
     }
 
     private Answer photo(String user, Sent s, byte[] content) {
