@@ -13,6 +13,8 @@ import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -72,6 +74,27 @@ public class MockXRoadSecurityServer {
             Thread.currentThread().interrupt();
             return fault(500, "Server.ServerProxy.ServiceFailed", "interrupted");
         }
+    }
+
+    /**
+     * The service receiveReport of the imitated unit inboxes. The unit is the member code in
+     * the path, the letter stays in the application, which keeps the handover itself.
+     */
+    @PostMapping("/{instance}/{memberClass}/{member}/reports-inbox/receiveReport")
+    public ResponseEntity<String> receive(@PathVariable String instance, @PathVariable String memberClass,
+            @PathVariable String member, @RequestHeader(name = "X-Road-Client", required = false) String client,
+            @RequestBody(required = false) String letter) {
+        if (client == null) {
+            return fault(400, "Client.MissingHeader", "X-Road-Client is missing");
+        }
+        if (letter == null || !letter.contains("referenceNumber")) {
+            return fault(400, "Server.ServerProxy.ServiceFailed", "the letter has no reference number");
+        }
+        String service = instance + "/" + memberClass + "/" + member + "/reports-inbox/receiveReport";
+        return ResponseEntity.ok().contentType(MediaType.APPLICATION_JSON)
+                .header("X-Road-Id", instance + "-" + UUID.randomUUID())
+                .header("X-Road-Client", client).header("X-Road-Service", service)
+                .body("{\"received\":true}");
     }
 
     private static ResponseEntity<String> fault(int status, String type, String message) {

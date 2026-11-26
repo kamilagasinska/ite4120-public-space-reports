@@ -25,6 +25,18 @@ public class Report {
     @JsonIgnore
     private java.time.OffsetDateTime lastChangeAt;
     private String recipientKind;
+    @JsonIgnore
+    private Long handoverId;
+    /** The last handover to the unit that solves the report. */
+    private String handoverUnit;
+    private OffsetDateTime handedAt;
+    /** Only for a coordinator and the unit. */
+    private String handoverInbox;
+    private String handoverService;
+    private String handoverState;
+    private String handoverMessageId;
+    /** Why the unit returned the report, or why the channel failed. */
+    private String handoverReason;
     private String recipientName;
     private String municipalityCode;
     private String municipalityName;
@@ -88,8 +100,34 @@ public class Report {
         sysModifiedBy = null;
         sysVersion = null;
         reminders = null;
+        if (!"SENT".equals(handoverState) && !"OPENED".equals(handoverState)) {
+            handoverUnit = null;
+            handedAt = null;
+        }
+        handoverInbox = null;
+        handoverService = null;
+        handoverState = null;
+        handoverMessageId = null;
+        handoverReason = null;
         return this;
     }
+
+    public Long getHandoverId() { return handoverId; }
+    public void setHandoverId(Long handoverId) { this.handoverId = handoverId; }
+    public String getHandoverUnit() { return handoverUnit; }
+    public void setHandoverUnit(String handoverUnit) { this.handoverUnit = handoverUnit; }
+    public OffsetDateTime getHandedAt() { return handedAt; }
+    public void setHandedAt(OffsetDateTime handedAt) { this.handedAt = handedAt; }
+    public String getHandoverInbox() { return handoverInbox; }
+    public void setHandoverInbox(String handoverInbox) { this.handoverInbox = handoverInbox; }
+    public String getHandoverService() { return handoverService; }
+    public void setHandoverService(String handoverService) { this.handoverService = handoverService; }
+    public String getHandoverState() { return handoverState; }
+    public void setHandoverState(String handoverState) { this.handoverState = handoverState; }
+    public String getHandoverMessageId() { return handoverMessageId; }
+    public void setHandoverMessageId(String handoverMessageId) { this.handoverMessageId = handoverMessageId; }
+    public String getHandoverReason() { return handoverReason; }
+    public void setHandoverReason(String handoverReason) { this.handoverReason = handoverReason; }
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }

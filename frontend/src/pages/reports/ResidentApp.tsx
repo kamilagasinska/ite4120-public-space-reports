@@ -851,7 +851,7 @@ const Status = ({ t, go, Back, H, Go, Txt, reference, own }: Ui & { reference: s
       {report.status === 'REJECTED' ? <div className="note"><b>{t('Rejected')}</b><br />{report.rejectionReason}</div> : (
         <ol className="jr" style={{ padding: 0, marginTop: 22 }}>
           {step(0, 'Reported', day(report.submittedAt), 'send')}
-          {step(1, 'Accepted', now > 0 ? report.recipientName : t('Not yet'), 'inbox')}
+          {step(1, 'Accepted', now > 0 ? (report.handoverUnit ? <>{t('Handed to')} {report.handoverUnit}{report.handedAt ? `, ${day(report.handedAt)}` : ''}</> : report.recipientName) : t('Not yet'), 'inbox')}
           {step(2, 'In progress', now >= 2 ? '' : t('Not yet'), 'cone')}
           {step(3, 'Update', last ? <>{last.text}{last.expectedOn ? <><br />{t('Expected')}: {day(last.expectedOn)}</> : null}</> : t('Expected date appears here'), 'news')}
           {step(4, 'Done', now > 3 ? '' : t('Not yet'), 'ok')}

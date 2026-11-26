@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Checkbox, DatePicker, Form, Image, Input, Modal, Select, Space, Steps, Timeline, Upload } from 'antd';
+import { Checkbox, DatePicker, Form, Image, Input, Modal, Result, Select, Space, Steps, Timeline, Upload } from 'antd';
 import { FileTextOutlined } from '@ant-design/icons';
 import { useDataController } from '@helex/core';
 import {
@@ -15,13 +15,17 @@ import { art } from '../reports/art';
 import { MapView } from '../reports/MapView';
 import '../reports/hio.css';
 import { catOf } from '../reports/store';
-import { CHANNEL, NEXT, NoAccess, STATUS, StatusTag } from './shared';
+import { CHANNEL, HANDOVER, NEXT, NoAccess, STATUS, StatusTag, type Role } from './shared';
 
 type Photo = PhotoInfo & { url: string };
 const text = (v: unknown) => (v === undefined || v === null || v === '' ? '—' : String(v));
 
-/** One report for the coordinator, on ResourceForm in view mode. The fields of the resident are never edited. */
-export const ReportPage = () => {
+/**
+ * One report for the coordinator or for the unit it was handed to, on ResourceForm in view
+ * mode. The fields of the resident are never edited.
+ */
+export const ReportPage = ({ role = 'coordinator' }: { role?: Role }) => {
+  const home = role === 'unit' ? '/unit' : '/reports';
   const { referenceNumber = '' } = useParams();
   const navigate = useNavigate();
   const notify = useAppNotification();
@@ -60,7 +64,7 @@ export const ReportPage = () => {
         if (e instanceof ApiProblem && e.status === 403) setDenied(true);
         else {
           notify.error('Could not load the report', (e as Error).message);
-          navigate('/reports');
+          navigate(home);
         }
       } finally {
         if (live) setLoading(false);
@@ -71,7 +75,12 @@ export const ReportPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [referenceNumber, version, notify]);
 
-  if (denied) return <NoAccess />;
+  if (denied) {
+    return role === 'unit'
+      ? <Result status="403" title="Not handed to your unit" subTitle="Only the unit a report was handed to can work on it."
+          extra={<AppButtonPrimary onClick={() => navigate('/unit')}>Back to the list</AppButtonPrimary>} />
+      : <NoAccess />;
+  }
   const report = dc.current;
 
   const act = (done: string, action: () => Promise<unknown>) =>
@@ -119,9 +128,9 @@ export const ReportPage = () => {
       dataController={dc}
       initialValues={report}
       sections={sections}
-      onBack={() => navigate('/reports')}
+      onBack={() => navigate(home)}
       backTooltip="Back to the list"
-      banner={report.status && <Case key={`${report.status}-${version}`} report={report} photos={photos} act={act} />}
+      banner={report.status && <Case key={`${report.status}-${version}`} role={role} report={report} photos={photos} act={act} />}
       sidebar={
         <Space orientation="vertical" size="middle" style={{ width: '100%' }}>
           <AppCard title="What happened" size="small">
@@ -144,12 +153,14 @@ type Act = (done: string, action: () => Promise<unknown>) => Promise<boolean>;
 
 const STEPS: ReportStatus[] = ['RECEIVED', 'ACCEPTED', 'IN_PROGRESS', 'RESOLVED'];
 const DO: Record<ReportStatus, string> = { RECEIVED: '', ACCEPTED: 'Accept', IN_PROGRESS: 'Start work', RESOLVED: 'Mark as resolved', REJECTED: 'Reject' };
-type Open = ReportStatus | 'news' | 'forward' | null;
+type Open = ReportStatus | 'news' | 'forward' | 'return' | null;
 
 /** What the worker needs first: the words of the resident, the photos, the place and what can be done. */
-const Case = ({ report, photos, act }: { report: Report; photos: Photo[]; act: Act }) => {
+const Case = ({ role, report, photos, act }: { role: Role; report: Report; photos: Photo[]; act: Act }) => {
   const [open, setOpen] = useState<Open>(null);
-  const next = NEXT[report.status];
+  const next = NEXT[role][report.status];
+  const live = report.status !== 'RESOLVED' && report.status !== 'REJECTED';
+  const unit = role === 'unit';
   const ref = report.referenceNumber;
   const close = () => setOpen(null);
   const spot = report.latitude !== undefined && report.longitude !== undefined ? { latitude: report.latitude, longitude: report.longitude } : undefined;
@@ -164,12 +175,15 @@ const Case = ({ report, photos, act }: { report: Report; photos: Photo[]; act: A
           {next.filter((s) => s !== 'REJECTED').map((s, i) => (i === 0
             ? <AppButtonPrimary key={s} size="large" onClick={() => setOpen(s)}>{DO[s]}</AppButtonPrimary>
             : <AppButtonSecondary key={s} size="large" onClick={() => setOpen(s)}>{DO[s]}</AppButtonSecondary>))}
-          {next.length > 0 && <AppButtonSecondary size="large" onClick={() => setOpen('news')}>Write news</AppButtonSecondary>}
-          {next.length > 0 && <AppButtonSecondary size="large" onClick={() => setOpen('forward')}>Forward</AppButtonSecondary>}
+          {live && <AppButtonSecondary size="large" onClick={() => setOpen('news')}>Write news</AppButtonSecondary>}
+          {live && !unit && <AppButtonSecondary size="large" onClick={() => setOpen('forward')}>Forward</AppButtonSecondary>}
           {next.includes('REJECTED') && <AppButtonSecondary size="large" danger onClick={() => setOpen('REJECTED')}>{DO.REJECTED}</AppButtonSecondary>}
-          {next.length === 0 && <em>This report is closed. {report.status === 'RESOLVED' && 'The resident can say that the problem remains, then it opens again.'}</em>}
+          {live && unit && <AppButtonSecondary size="large" danger onClick={() => setOpen('return')}>Not ours, return</AppButtonSecondary>}
+          {!live && <em>This report is closed. {report.status === 'RESOLVED' && 'The resident can say that the problem remains, then it opens again.'}</em>}
+          {live && !unit && report.status !== 'RECEIVED' && <em>The unit works on it now. It starts the work and marks it resolved.</em>}
         </div>
       </section>
+      <Handover report={report} role={role} act={act} />
       <section className="work-box" aria-label="Problem">
         <div className="work-head">
           <span dangerouslySetInnerHTML={{ __html: art[catOf(report.categoryCode)] }} aria-hidden="true" />
@@ -180,17 +194,21 @@ const Case = ({ report, photos, act }: { report: Report; photos: Photo[]; act: A
           <ul className="work-photos">{photos.map((p) => <li key={p.id}><figure><Image width={150} height={120} src={p.url} alt={p.kind === 'AFTER' ? 'Result' : 'Problem'} /><figcaption>{p.kind === 'AFTER' ? 'Result' : 'Problem'}</figcaption></figure></li>)}</ul>
         </Image.PreviewGroup>
         {!photos.length && <p>No photos.</p>}
-        <Upload accept="image/jpeg,image/png" showUploadList={false} beforeUpload={(f) => { void act('Photo added', () => reportsApi.addPhoto(ref, f)); return false; }}>
-          <AppButtonSecondary style={{ marginTop: 12 }}>Add a photo of the result</AppButtonSecondary>
-        </Upload>
+        {unit && live && (
+          <Upload accept="image/jpeg,image/png" showUploadList={false} beforeUpload={(f) => { void act('Photo added', () => reportsApi.addPhoto(ref, f)); return false; }}>
+            <AppButtonSecondary style={{ marginTop: 12 }}>Add a photo of the result</AppButtonSecondary>
+          </Upload>
+        )}
       </section>
       <section className="work-map" aria-label="Place">
         {spot ? <div className="hio"><MapView center={spot} zoom={16} pin={spot} label={() => ''} /></div>
           : <div className="work-none">The resident typed the address and did not put a pin on the map.</div>}
       </section>
       <Modal open={open !== null} onCancel={close} footer={null} destroyOnHidden
-        title={open === 'news' ? 'News for the resident' : open === 'forward' ? 'Forward to another recipient' : open ? `${DO[open]}, ${ref}` : ''}>
+        title={open === 'news' ? 'News for the resident' : open === 'forward' ? 'Forward to another recipient'
+          : open === 'return' ? 'Return to the coordinator' : open ? `${DO[open]}, ${ref}` : ''}>
         {open === 'news' ? <UpdateForm referenceNumber={ref} act={act} onDone={done} />
+          : open === 'return' ? <ReturnForm referenceNumber={ref} act={act} onDone={done} />
           : open === 'forward' ? <ForwardForm referenceNumber={ref} act={act} onDone={done} />
             : open && <StatusForm report={report} to={open} act={act} onDone={done} />}
       </Modal>
@@ -227,7 +245,8 @@ const StatusForm = ({ report, to, act, onDone }: Done & { report: Report; to: Re
         <Input.TextArea aria-label="Reason" autoSize={{ minRows: 3 }} maxLength={500} showCount value={reason} onChange={(e) => setReason(e.target.value)} />
       </Form.Item>
       {rejecting && <Form.Item><Checkbox checked={falseReport} onChange={(e) => setFalseReport(e.target.checked)}>False report, the sender loses the trust points</Checkbox></Form.Item>}
-      {!rejecting && !report.published && <Form.Item><Checkbox checked={publish} onChange={(e) => setPublish(e.target.checked)}>Show text and photos on the public map. I checked that they name nobody.</Checkbox></Form.Item>}
+      {to === 'ACCEPTED' && <p>The report is then handed to {report.recipientName} over X-Road.</p>}
+      {!rejecting && !report.published && to === 'ACCEPTED' && <Form.Item><Checkbox checked={publish} onChange={(e) => setPublish(e.target.checked)}>Show text and photos on the public map. I checked that they name nobody.</Checkbox></Form.Item>}
       <AppButtonPrimary htmlType="submit" loading={busy} disabled={rejecting && !reason.trim()}>{DO[to]}</AppButtonPrimary>
     </Form>
   );
@@ -242,6 +261,43 @@ const UpdateForm = ({ referenceNumber, act, onDone }: Done & { referenceNumber: 
       <Form.Item label="Expected on"><DatePicker aria-label="Expected on" value={day} onChange={setDay} style={{ width: '100%' }} /></Form.Item>
       <AppButtonPrimary htmlType="submit" disabled={!message.trim()}>Send</AppButtonPrimary>
     </Form>
+  );
+};
+
+const ReturnForm = ({ referenceNumber, act, onDone }: Done & { referenceNumber: string }) => {
+  const [reason, setReason] = useState('');
+  return (
+    <Form layout="vertical" onFinish={() => act('Returned to the coordinator', () => reportsApi.giveBack(referenceNumber, reason)).then(onDone)}>
+      <p>The coordinator forwards it to the right recipient or rejects it. Your unit no longer sees it.</p>
+      <Form.Item label="Why it is not yours" required><Input.TextArea aria-label="Why it is not yours" autoSize={{ minRows: 3 }} maxLength={500} showCount value={reason} onChange={(e) => setReason(e.target.value)} /></Form.Item>
+      <AppButtonPrimary htmlType="submit" danger disabled={!reason.trim()}>Return</AppButtonPrimary>
+    </Form>
+  );
+};
+
+/** Where the report went: the unit, its inbox, the X-Road message and what the unit did. */
+const Handover = ({ report, role, act }: { report: Report; role: Role; act: Act }) => {
+  if (!report.handoverState) {
+    return report.status === 'RECEIVED' ? null : (
+      <section className="work-box" aria-label="Handover"><b>Not handed to a unit.</b> The recipient is not known, forward it to the right one.</section>
+    );
+  }
+  const state = HANDOVER[report.handoverState];
+  const again = role === 'coordinator' && (report.handoverState === 'FAILED' || report.handoverState === 'RETURNED');
+  return (
+    <section className="work-box work-handover" aria-label="Handover">
+      <Space wrap align="center">
+        <b>Handed to {report.handoverUnit}</b><AppTag color={state.color}>{state.text}</AppTag>
+        {report.handedAt && <AppTimestamp value={report.handedAt} />}
+      </Space>
+      <dl>
+        <dt>Inbox</dt><dd>{report.handoverInbox}</dd>
+        <dt>X-Road service</dt><dd>{report.handoverService ?? 'not sent over X-Road'}</dd>
+        {report.handoverMessageId && <><dt>X-Road message id</dt><dd>{report.handoverMessageId}</dd></>}
+        {report.handoverReason && <><dt>{report.handoverState === 'RETURNED' ? 'Why returned' : 'Error'}</dt><dd>{report.handoverReason}</dd></>}
+      </dl>
+      {again && <AppButtonPrimary onClick={() => { void act('Sent again', () => reportsApi.sendAgain(report.referenceNumber)); }}>Send to the unit again</AppButtonPrimary>}
+    </section>
   );
 };
 
@@ -269,6 +325,7 @@ function events(report: Report, history: StatusChange[], messages: Message[], fo
     ...history.map((h) => ({ at: h.sysCreatedAt, by: h.sysCreatedBy, what: `${STATUS[h.fromStatus].text} → ${STATUS[h.toStatus].text}${h.falseReport ? ', false report' : ''}`, why: h.reason })),
     ...messages.map((m) => ({ at: m.sysCreatedAt, by: m.sysCreatedBy, what: { UPDATE: 'News for the resident', REMINDER: 'Reminder of the resident', REMAINS: 'The resident says the problem remains' }[m.kind], why: [m.text, m.expectedOn && `expected on ${m.expectedOn}`].filter(Boolean).join(', ') })),
     ...forwardings.map((f) => ({ at: f.sysCreatedAt, by: f.sysCreatedBy, what: `${f.fromName} → ${f.toName}`, why: f.reason })),
+    ...(report.handedAt ? [{ at: report.handedAt, by: undefined, what: `Handed to ${report.handoverUnit}`, why: report.handoverService ? 'over X-Road' : undefined }] : []),
     ...(report.submittedAt ? [{ at: report.submittedAt, by: undefined, what: 'Received', why: undefined }] : []),
   ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
   return all.map((e, i) => ({

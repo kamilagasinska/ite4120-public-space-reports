@@ -164,9 +164,11 @@ class ReportBusinessRulesIT {
     void onlyAllowedStatusChangesAreAccepted() {
         String reference = submit("LITTER");
         assertProblem(change(COORDINATOR, reference, "RESOLVED", null), 409, "RECEIVED");
-        assertThat(change(COORDINATOR, reference, "IN_PROGRESS", null).status).isEqualTo(200);
+        assertProblem(change(COORDINATOR, reference, "IN_PROGRESS", null), 409, "RECEIVED");
+        assertThat(change(COORDINATOR, reference, "ACCEPTED", null).status).isEqualTo(200);
+        assertThat(change(unit(reference), reference, "IN_PROGRESS", null).status).isEqualTo(200);
         assertProblem(change(COORDINATOR, reference, "REJECTED", "duplicate"), 409, "IN_PROGRESS");
-        assertThat(change(COORDINATOR, reference, "RESOLVED", null).status).isEqualTo(200);
+        assertThat(change(unit(reference), reference, "RESOLVED", null).status).isEqualTo(200);
 
         assertProblem(change(COORDINATOR, reference, "RECEIVED", null), 409, "RESOLVED");
         assertThat(get(RESIDENT, "/api/reports/" + reference).text("status")).isEqualTo("RESOLVED");
@@ -189,15 +191,17 @@ class ReportBusinessRulesIT {
     @Test
     void everyStatusChangeIsRecorded() {
         String reference = submit("LITTER");
-        change(COORDINATOR, reference, "IN_PROGRESS", null);
-        change(COORDINATOR, reference, "RESOLVED", "Cleaned");
+        change(COORDINATOR, reference, "ACCEPTED", null);
+        String unit = unit(reference);
+        change(unit, reference, "IN_PROGRESS", null);
+        change(unit, reference, "RESOLVED", "Cleaned");
 
         Answer history = get(COORDINATOR, "/api/reports/" + reference + "/history");
         assertThat(history.status).isEqualTo(200);
-        assertThat(history.body.findValuesAsText("toStatus")).containsExactly("IN_PROGRESS", "RESOLVED");
-        assertThat(history.body.findValuesAsText("fromStatus")).containsExactly("RECEIVED", "IN_PROGRESS");
-        assertThat(history.body.findValuesAsText("sysCreatedBy")).containsExactly(COORDINATOR, COORDINATOR);
-        assertThat(history.body.findValuesAsText("sysCreatedAt")).hasSize(2).doesNotContain("null");
+        assertThat(history.body.findValuesAsText("toStatus")).containsExactly("ACCEPTED", "IN_PROGRESS", "RESOLVED");
+        assertThat(history.body.findValuesAsText("fromStatus")).containsExactly("RECEIVED", "ACCEPTED", "IN_PROGRESS");
+        assertThat(history.body.findValuesAsText("sysCreatedBy")).containsExactly(COORDINATOR, unit, unit);
+        assertThat(history.body.findValuesAsText("sysCreatedAt")).hasSize(3).doesNotContain("null");
     }
 
     /** 11. A report is accepted even when the address register is down. */
@@ -246,7 +250,7 @@ class ReportBusinessRulesIT {
     @Test
     void onlyACoordinatorCanChangeAStatus() {
         String reference = submit("LITTER");
-        assertProblem(change(RESIDENT, reference, "IN_PROGRESS", null), 403, "coordinator");
+        assertProblem(change(RESIDENT, reference, "ACCEPTED", null), 403, "coordinator");
         assertThat(get(RESIDENT, "/api/reports/" + reference).text("status")).isEqualTo("RECEIVED");
         assertProblem(get(RESIDENT, "/api/reports"), 403, "coordinator");
         assertProblem(get(RESIDENT, "/api/reports/" + reference + "/history"), 403, "coordinator");
@@ -276,6 +280,15 @@ class ReportBusinessRulesIT {
         Answer answer = post(RESIDENT, "/api/reports", body("categoryCode", category));
         assertThat(answer.status).as(answer.raw).isEqualTo(201);
         return answer.text("referenceNumber");
+    }
+
+    /** The inbox address of the unit the report was handed to, which is also its mock user. */
+    private String unit(String reference) {
+        if (get(COORDINATOR, "/api/reports/" + reference).text("handoverInbox").isEmpty()) {
+            post(COORDINATOR, "/api/reports/" + reference + "/forward", json.createObjectNode().put("kind", "MUNICIPALITY")
+                    .put("name", "Tallinn, Environment Department").put("reason", "Known city").toString());
+        }
+        return get(COORDINATOR, "/api/reports/" + reference).text("handoverInbox");
     }
 
     private Answer change(String user, String reference, String toStatus, String reason) {

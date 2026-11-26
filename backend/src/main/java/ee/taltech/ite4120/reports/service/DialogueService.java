@@ -36,9 +36,11 @@ public class DialogueService {
     private final PhotoStorage photos;
     private final PhotoCleaner cleaner;
     private final ReportAccess access;
+    private final HandoverService handovers;
 
     public DialogueService(ReportRepository reports, ReporterRepository locks, DialogueRepository repository,
-            PhotoStorage photos, PhotoCleaner cleaner, ReportAccess access) {
+            PhotoStorage photos, PhotoCleaner cleaner, ReportAccess access, HandoverService handovers) {
+        this.handovers = handovers;
         this.reports = reports;
         this.locks = locks;
         this.repository = repository;
@@ -47,10 +49,10 @@ public class DialogueService {
         this.access = access;
     }
 
-    /** The sender adds a photo of the problem, the coordinator one of the result. */
+    /** The sender adds a photo of the problem, the unit or the coordinator one of the result. */
     @Transactional
     public PhotoInfo addPhoto(String referenceNumber, String key, byte[] file) {
-        boolean coordinator = key == null && access.isCoordinator();
+        boolean coordinator = key == null && access.isStaffOf(require(referenceNumber));
         Report report = coordinator ? require(referenceNumber) : own(referenceNumber, key);
         if (!coordinator && status(report).isClosed()) {
             throw new ConflictException("report", "the report is closed");
@@ -73,8 +75,10 @@ public class DialogueService {
     }
 
     public void update(String referenceNumber, String text, LocalDate expectedOn) {
-        access.requireCoordinator();
         Report report = require(referenceNumber);
+        if (!access.isStaffOf(report)) {
+            throw new ForbiddenException("only a coordinator or the unit of the report may do this");
+        }
         if (status(report).isClosed()) {
             throw new ConflictException("report", "the report is closed");
         }
@@ -82,8 +86,9 @@ public class DialogueService {
     }
 
     public List<Message> messages(String referenceNumber) {
-        List<Message> all = repository.messages(require(referenceNumber).getId());
-        return access.isCoordinator() ? all : all.stream().map(Message::forResident).toList();
+        Report report = require(referenceNumber);
+        List<Message> all = repository.messages(report.getId());
+        return access.isStaffOf(report) ? all : all.stream().map(Message::forResident).toList();
     }
 
     @Transactional
@@ -114,6 +119,7 @@ public class DialogueService {
         }
         reports.insertStatusChange(report.getId(), "RESOLVED", "ACCEPTED", text.trim(), false);
         repository.addMessage(report.getId(), "REMAINS", text.trim(), null);
+        handovers.handOver(require(referenceNumber));
         Report changed = require(referenceNumber);
         return access.isCoordinator() ? changed : changed.forResident();
     }
@@ -165,8 +171,9 @@ public class DialogueService {
     }
 
     private Report ownOrCoordinator(String referenceNumber, String key) {
-        if (access.isCoordinator()) {
-            return require(referenceNumber);
+        Report report = require(referenceNumber);
+        if (access.isStaffOf(report)) {
+            return report;
         }
         if (key == null) {
             throw new ForbiddenException("only a coordinator or the sender may do this");

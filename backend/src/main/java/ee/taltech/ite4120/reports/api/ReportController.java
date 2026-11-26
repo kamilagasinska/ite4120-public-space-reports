@@ -6,6 +6,7 @@ import ee.taltech.ite4120.reports.model.Forwarding;
 import ee.taltech.ite4120.reports.model.Place;
 import ee.taltech.ite4120.reports.model.Report;
 import ee.taltech.ite4120.reports.model.StatusChange;
+import ee.taltech.ite4120.reports.service.HandoverService;
 import ee.taltech.ite4120.reports.service.ReportService;
 import ee.taltech.ite4120.reports.xroad.XRoadCheck;
 import io.swagger.v3.oas.annotations.Operation;
@@ -38,7 +39,10 @@ public class ReportController {
     private final ReportService service;
     private final XRoadCheck xroadCheck;
 
-    public ReportController(ReportService service, XRoadCheck xroadCheck) {
+    private final HandoverService handovers;
+
+    public ReportController(ReportService service, XRoadCheck xroadCheck, HandoverService handovers) {
+        this.handovers = handovers;
         this.xroadCheck = xroadCheck;
         this.service = service;
     }
@@ -113,6 +117,40 @@ public class ReportController {
     @GetMapping("/{referenceNumber}/forwardings")
     public List<Forwarding> forwardings(@PathVariable String referenceNumber) {
         return service.forwardings(referenceNumber);
+    }
+
+    @Operation(summary = "The reports handed to the signed-in unit, open ones first (unit)")
+    @ApiResponse(responseCode = "200", description = "The reports")
+    @ApiResponse(responseCode = "403", description = "Not a unit")
+    @GetMapping("/handed")
+    public List<Report> handed() {
+        return handovers.handed();
+    }
+
+    @Operation(summary = "Units with open reports, for the mock sign-in of a unit")
+    @GetMapping("/units")
+    public List<java.util.Map<String, Object>> units() {
+        return handovers.inboxes();
+    }
+
+    @Operation(summary = "Send a failed or returned handover to the unit again (coordinator)")
+    @ApiResponse(responseCode = "200", description = "The report with its new handover")
+    @ApiResponse(responseCode = "403", description = "Not a coordinator")
+    @ApiResponse(responseCode = "404", description = "No report with that reference number")
+    @ApiResponse(responseCode = "409", description = "Not accepted, or already with the unit")
+    @PostMapping("/{referenceNumber}/handover")
+    public Report sendAgain(@PathVariable String referenceNumber) {
+        return handovers.sendAgain(referenceNumber);
+    }
+
+    @Operation(summary = "Return a report that is not for this unit, with a reason (unit)")
+    @ApiResponse(responseCode = "200", description = "The report, waiting for the coordinator")
+    @ApiResponse(responseCode = "400", description = "No reason")
+    @ApiResponse(responseCode = "403", description = "Not the unit the report was handed to")
+    @ApiResponse(responseCode = "404", description = "No report with that reference number")
+    @PostMapping("/{referenceNumber}/handover/return")
+    public Report giveBack(@PathVariable String referenceNumber, @Valid @RequestBody ReturnRequest body) {
+        return handovers.giveBack(referenceNumber, body.getReason());
     }
 
     @Operation(summary = "Live call to the X-Road test environment (coordinator)")

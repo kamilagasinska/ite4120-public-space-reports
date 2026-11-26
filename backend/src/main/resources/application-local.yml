@@ -22,3 +22,7 @@ reports:
     # to the public address service. An address with "register-down" shows a failure.
     mode: xroad
     mock-server: true      # this app serves /mock-registry/ads itself
+  unit-channel:
+    # An accepted report goes to the unit as an X-Road message, through the same imitated
+    # security server, which stands in for the inbox of the unit too.
+    mode: xroad
