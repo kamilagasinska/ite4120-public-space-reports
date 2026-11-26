@@ -280,8 +280,11 @@ public class ReportService {
     }
 
     public List<StatusChange> history(String referenceNumber) {
-        access.requireCoordinator();
-        return repository.history(require(referenceNumber).getId());
+        Report report = require(referenceNumber);
+        if (!access.isStaffOf(report)) {
+            throw new ForbiddenException("only a coordinator or the unit of the report may do this");
+        }
+        return repository.history(report.getId());
     }
 
     public List<Category> categories() {

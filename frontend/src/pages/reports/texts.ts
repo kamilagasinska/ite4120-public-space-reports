@@ -278,6 +278,7 @@ const TEXTS: Record<string, string[]> = {
   "Reminder sent": ["Meeldetuletus saadetud","Напоминание отправлено","Нагадування надіслано"],
   "A reminder is possible once in 3 days.": ["Meelde tuletada saab kord 3 päeva jooksul.","Напомнить можно раз в 3 дня.","Нагадати можна раз на 3 дні."],
   "Sent to": ["Saadetud","Отправлено в","Надіслано до"],
+  "Handed to": ["Edastatud üksusele","Передано в","Передано до"],
   "Forwarded to": ["Edasi saadetud","Переслано в","Переслано до"],
   "Expected": ["Oodata on","Ожидается","Очікується"],
   "What is still wrong?": ["Mis on ikka valesti?","Что ещё не так?","Що ще не так?"],

@@ -58,3 +58,7 @@
   .work-main { padding: 14px; }
 }
 @media (prefers-reduced-motion: reduce) { .work * { transition: none !important; } }
+
+.work-handover dl { display: grid; grid-template-columns: max-content 1fr; gap: 4px 16px; margin: 12px 0; }
+.work-handover dt { color: #6b6880; }
+.work-handover dd { margin: 0; overflow-wrap: anywhere; }

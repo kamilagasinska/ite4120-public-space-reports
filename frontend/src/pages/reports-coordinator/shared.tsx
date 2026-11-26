@@ -13,13 +13,29 @@ export const STATUS: Record<ReportStatus, { text: string; color: string }> = {
 /** The colours of the pins on the map. */
 export const DOT: Record<ReportStatus, string> = { RECEIVED: '#f2c230', ACCEPTED: '#2468b0', IN_PROGRESS: '#c45a0a', RESOLVED: '#277257', REJECTED: '#b3203a' };
 
-/** The same changes the server allows. The server decides, this only hides the impossible ones. */
-export const NEXT: Record<ReportStatus, ReportStatus[]> = {
-  RECEIVED: ['ACCEPTED', 'IN_PROGRESS', 'REJECTED'],
-  ACCEPTED: ['IN_PROGRESS', 'REJECTED'],
-  IN_PROGRESS: ['RESOLVED'],
-  RESOLVED: [],
-  REJECTED: [],
+export type Role = 'coordinator' | 'unit';
+
+/**
+ * The same changes the server allows. The coordinator accepts and rejects, the unit the
+ * report was handed to solves it. The server decides, this only hides the impossible ones.
+ */
+export const NEXT: Record<Role, Record<ReportStatus, ReportStatus[]>> = {
+  coordinator: { RECEIVED: ['ACCEPTED', 'REJECTED'], ACCEPTED: ['REJECTED'], IN_PROGRESS: [], RESOLVED: [], REJECTED: [] },
+  unit: { RECEIVED: [], ACCEPTED: ['IN_PROGRESS'], IN_PROGRESS: ['RESOLVED'], RESOLVED: [], REJECTED: [] },
+};
+
+/** What the state of a handover means for people. */
+export const HANDOVER: Record<NonNullable<Report['handoverState']>, { text: string; color: string }> = {
+  SENT: { text: 'sent to the unit', color: 'blue' },
+  OPENED: { text: 'opened by the unit', color: 'green' },
+  RETURNED: { text: 'returned by the unit', color: 'red' },
+  FAILED: { text: 'not delivered', color: 'red' },
+};
+
+/** The inbox address of the unit signed in with the mock sign-in, or null. */
+export const signedUnit = () => {
+  const user = localStorage.getItem('reports_user') ?? '';
+  return user.endsWith('.example') ? user : null;
 };
 
 export const CHANNEL: Record<Report['channel'], string> = { GUEST: 'Guest', DEVICE: 'Device', SIGNED: 'Smart-ID' };

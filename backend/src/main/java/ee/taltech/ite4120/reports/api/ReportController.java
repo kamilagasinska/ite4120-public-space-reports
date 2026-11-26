@@ -127,6 +127,12 @@ public class ReportController {
         return handovers.handed();
     }
 
+    @Operation(summary = "Units with open reports, for the mock sign-in of a unit")
+    @GetMapping("/units")
+    public List<java.util.Map<String, Object>> units() {
+        return handovers.inboxes();
+    }
+
     @Operation(summary = "Send a failed or returned handover to the unit again (coordinator)")
     @ApiResponse(responseCode = "200", description = "The report with its new handover")
     @ApiResponse(responseCode = "403", description = "Not a coordinator")

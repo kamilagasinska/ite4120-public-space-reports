@@ -27,5 +27,5 @@ export const App = () => {
       {componentRoutes}
     </Routes>
   );
-  return /^\/reports(-xroad)?(\/|$)/.test(pathname) ? <Shell>{routes}</Shell> : routes;
+  return /^\/(reports(-xroad)?|unit)(\/|$)/.test(pathname) ? <Shell>{routes}</Shell> : routes;
 };

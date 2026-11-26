@@ -75,6 +75,15 @@ public class ReportRepository extends BaseRepository {
                 bp, inbox);
     }
 
+    /** The inboxes that have open reports, for the mock sign-in of a unit. */
+    public List<Map<String, Object>> inboxes() {
+        return jdbcTemplate.queryForList("select h.inbox, h.unit, h.recipient_name as recipient, count(*)::int as reports "
+                + "from reports.handover h join reports.report r on r.id = h.report_id and r.sys_status = 'A' "
+                + "where h.sys_status = 'A' and h.state in ('SENT', 'OPENED') and r.status in ('ACCEPTED', 'IN_PROGRESS') "
+                + "and h.id = (select max(x.id) from reports.handover x where x.report_id = h.report_id and x.sys_status = 'A') "
+                + "group by h.inbox, h.unit, h.recipient_name order by count(*) desc, h.inbox");
+    }
+
     public void insertHandover(Long reportId, String recipientName, String unit, String inbox, String channel,
             String service, String state, String messageId, String detail) {
         jdbcTemplate.update("insert into reports.handover (report_id, recipient_name, unit, inbox, channel, service, "

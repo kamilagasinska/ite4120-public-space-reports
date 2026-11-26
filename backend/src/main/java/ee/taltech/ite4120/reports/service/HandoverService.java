@@ -104,6 +104,11 @@ public class HandoverService {
         }
     }
 
+    /** The units with open reports. Only for the mock sign-in, a real unit signs in for real. */
+    public List<java.util.Map<String, Object>> inboxes() {
+        return repository.inboxes();
+    }
+
     /** The reports handed to the signed-in unit. */
     public List<Report> handed() {
         String unit = access.unit();

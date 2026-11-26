@@ -32,6 +32,14 @@ export interface Report {
   senderReports?: number;
   senderFalseReports?: number;
   senderPoints?: number;
+  /** The last handover to the unit that solves it. The resident sees only the unit and the day. */
+  handoverUnit?: string;
+  handedAt?: string;
+  handoverInbox?: string;
+  handoverService?: string;
+  handoverState?: 'SENT' | 'OPENED' | 'RETURNED' | 'FAILED';
+  handoverMessageId?: string;
+  handoverReason?: string;
   sysCreatedAt?: string;
   sysCreatedBy?: string;
   sysModifiedAt?: string;
@@ -39,6 +47,7 @@ export interface Report {
   sysVersion?: number;
 }
 
+export interface Unit { inbox: string; unit: string; recipient: string; reports: number }
 export interface Category { code: string; name: string; responsibleUnit: string; onMap: boolean }
 export interface StatusChange { fromStatus: ReportStatus; toStatus: ReportStatus; reason?: string; falseReport: boolean; sysCreatedAt: string; sysCreatedBy: string }
 export interface Forwarding { fromName: string; toKind: string; toName: string; reason: string; sysCreatedAt: string; sysCreatedBy?: string }
@@ -143,5 +152,12 @@ export const reportsApi = {
   update: (referenceNumber: string, text: string, expectedOn?: string) => post(`/${ref(referenceNumber)}/updates`, { text, expectedOn }),
   forward: (referenceNumber: string, body: { kind: string; name?: string; reason: string }): Promise<Report> =>
     post(`/${ref(referenceNumber)}/forward`, body).then((r) => r.json()),
+  sendAgain: (referenceNumber: string): Promise<Report> => post(`/${ref(referenceNumber)}/handover`).then((r) => r.json()),
+
+  /** Unit. */
+  units: () => get<Unit[]>('/units'),
+  handed: () => get<Report[]>('/handed'),
+  giveBack: (referenceNumber: string, reason: string): Promise<Report> =>
+    post(`/${ref(referenceNumber)}/handover/return`, { reason }).then((r) => r.json()),
   xroadStatus: () => get<{ available: boolean; securityServer: string; service: string; messageId?: string; requestHash?: string; services?: string[]; detail?: string }>('/xroad-status'),
 };

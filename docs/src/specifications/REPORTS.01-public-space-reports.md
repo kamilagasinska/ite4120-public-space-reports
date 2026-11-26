@@ -309,6 +309,10 @@ The database repeats the service validation with CHECK constraints on
 | `GET /api/reports/place` | municipality and address of a map point (`latitude`, `longitude`), with `categoryCode` also the recipient | 400 · 404 · 502 |
 | `POST /api/reports/{referenceNumber}/forward` | coordinator; send to another recipient (`kind`, `name`, `reason`) | 400 · 403 · 404 · 409 closed or already there |
 | `GET /api/reports/{referenceNumber}/forwardings` | where it was forwarded, oldest first; user name only for a coordinator | 404 |
+| `GET /api/reports/handed` | unit; the reports handed to it and not returned, open ones first | 403 |
+| `GET /api/reports/units` | inboxes with open reports, only for the mock sign-in of a unit | none |
+| `POST /api/reports/{referenceNumber}/handover` | coordinator; send a failed or returned handover again | 403 · 404 · 409 |
+| `POST /api/reports/{referenceNumber}/handover/return` | unit; return the report as not theirs (`reason`) | 400 · 403 · 404 · 409 |
 | `GET /api/reports/xroad-status` | coordinator; live call to the X-Road test environment, with the hash of the request made by the security server and the list of its services; a failure is shown as not available | 403 |
 | `POST /api/reports/{referenceNumber}/status` | coordinator; change status (`toStatus`, `reason`, `falseReport`, `publish`) | 400 missing reason · 403 · 404 · 409 change not allowed |
 | `GET /api/reports/{referenceNumber}/history` | coordinator; status changes, oldest first | 403 · 404 |
