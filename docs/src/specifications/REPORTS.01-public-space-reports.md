@@ -1,6 +1,6 @@
 # REPORTS.01 · Public space reports
 
-> **REPORTS.01** · state **Draft** (revision 5, handover to the responsible unit; revision 4 agreed) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
+> **REPORTS.01** · state **Agreed** (revision 5, handover to the responsible unit) · traces from [REPORTS-US-001](../user-stories/REPORTS-US-001.md)
 > and [REPORTS-US-002](../user-stories/REPORTS-US-002.md)
 
 ## Description
@@ -119,8 +119,15 @@ data inside the file are dropped and a file that is not a picture is refused (40
 Photos can show faces
 and number plates, therefore only the sender and the coordinator see them until the
 coordinator publishes the report. They are deleted 6 months after the report is closed.
-The coordinator can add up to 5 photos of the result. Photos are kept in the database
-behind a storage interface. Production would use object storage (TEHIK).
+The unit the report was handed to can add up to 5 photos of the result. Photos are kept
+in the database behind a storage interface.
+
+On a phone the page takes the photo itself with the camera of the browser and does not open
+the camera app of the phone. A phone may close the browser tab while its own camera app is
+open, and the report being written would be lost. If the browser cannot open the camera,
+the page says so and the resident chooses a photo from the phone. Without a photo the page
+says that checking may take longer, and the report can still be sent. A photo changes
+neither the order of the list nor the trust of the sender. Production would use object storage (TEHIK).
 
 ## Public map
 
@@ -272,6 +279,16 @@ open list of the units and their systems was found.
 | | `report_id` | bigint | required, FK → report |
 | | `key_hash` | text | required, unique per report among active rows |
 | | `sys_*` | platform | trigger-managed |
+| `reports.handover` | `id` PK | bigint | from `core.seq_id` |
+| | `report_id` | bigint | FK → report |
+| | `recipient_name`, `unit` | text | required; the recipient and the unit at the time of the handover |
+| | `inbox` | text | required; the invented inbox address, also the mock user of the unit |
+| | `channel` | text | required; XROAD or OUTBOX |
+| | `service` | text | the X-Road service it was sent to |
+| | `state` | text | required; SENT, OPENED, RETURNED, FAILED |
+| | `message_id` | text | the X-Road message id of the answer |
+| | `detail`, `return_reason` | text | ≤500; why the channel failed, why the unit returned it (required when RETURNED) |
+| | `sys_*` | platform | trigger-managed |
 | `reports.signing` | `id` PK | bigint | from `core.seq_id` |
 | | `token` | text | required, unique; random, used by the form to ask for the result |
 | | `session_id` | text | required; the Smart-ID session |
@@ -357,29 +374,34 @@ The list without `sort` shows the longest waiting report first. Sort keys are
 
 ## UI
 
-| Screen | Element | Component | Rules |
+The resident pages are drawn for this project (design Hole in One) and are not built from
+`@helex/ui`, because they are a phone app. The pages of the coordinator and of the unit use
+`@helex/ui` and antd, lists on `ResourceList` and the report page on `ResourceForm`.
+
+| Screen | Path | Who | What it shows and does |
 | --- | --- | --- | --- |
-| Start `/reports/start` | explanation and choice | `AppCard` + `Radio.Group` + `AppButtonPrimary` | what is stored and why; guest, device or Smart-ID, with the limit of each |
-| Smart-ID step | verification code | `AppCard` + `Select` of test persons | labelled as demo; shows the code, waiting, refused and unreachable states |
-| Report form `/reports/new` | category | `Select` | required, options from `/categories` |
-| | address | `Input` | required, ≤255 |
-| | place | `Button` "Use my location" + `InputNumber` × 2 | the browser asks for permission; fills the point, address and municipality; every value can be corrected, because the problem may be elsewhere; without permission the address is typed |
-| | description | `Input.TextArea` | required, 10-1000, character counter |
-| | contact | `Input` | optional, ≤255, hint "only used to follow up on this report" |
-| | submit | `AppButtonPrimary` | disabled while sending; generates `submissionKey` once per form; on success shows the reference number; 400 problem text shown in a notification |
-| Status lookup `/reports/lookup` | reference number | `Input` | required |
-| | search | `AppButtonPrimary` | shows status, category, address and submitted date; 404 → "No report with this reference number" |
-| Report list `/reports` | table | `ResourceList` | coordinator; columns reference number (link), category tag, responsible unit, address, status tag, days open, submitted at; filters category and status; "address not verified" tag |
-| Report page `/reports/{referenceNumber}` | view | `ResourceForm` + `useDataController` | coordinator; read-only fields incl. contact and verification |
-| | status change | `Select` + `Input.TextArea` + `AppButtonPrimary` | `Select` offers only allowed next statuses; reason required for Rejected; 400/409 text in a notification |
-| | history | `AppCard` | from, to, reason, when, by whom |
-| | metadata | `ResourceForm.sidebar` | created and modified at and by, version |
+| Start | `/spot` | resident | sign in with Smart-ID, or go on without signing in |
+| Before you start | `/spot/privacy` | resident | what is kept and why; device number, guest or Smart-ID, with the limit of each |
+| What | `/spot/home` | resident | six pictures for the nine categories, points of the device |
+| Where | `/spot/where` | resident | map with a pin, "I am here now" or a typed address, the recipient before sending |
+| Words, photo, contact, check | `/spot/words` … `/spot/check` | resident | ready answers or own words, up to 5 photos with the camera inside the page, optional contact, a last check and sending |
+| My reports | `/spot/mine` | resident | the reports sent on this device by this person, All, Open, Closed |
+| Status | `/spot/status/{referenceNumber}` | resident | the five steps, the unit it was handed to and the day, news, remind, "the problem remains" |
+| Map | `/spot/map` | resident | public points with a list of the same points, "I see it too" |
+| Profile | `/spot/account` | resident | name and portrait of the demo person, points, level, language |
+| Report list | `/reports` | coordinator | a card with a count for every status and for late reports, search, filters, `ResourceList` |
+| Report page | `/reports/{referenceNumber}` | coordinator | the words, photos and place, Accept, Reject, Forward, Write news, the handover with its X-Road service and message id, Send to the unit again, history |
+| Map | `/reports/map` | coordinator | all reports on a map |
+| X-Road | `/reports-xroad` | coordinator | live call to the X-Road Playground with the request hash and the services it listed |
+| Sign in as a unit | `/unit` | unit | mock sign-in, a choice of the units that have open reports |
+| Handed to us | `/unit` | unit | the reports handed to the unit, new ones marked |
+| Report page | `/unit/{referenceNumber}` | unit | Start work, Mark as resolved, Write news, a photo of the result, Not ours, return |
 
 **Layout.** The resident pages are at `/spot` and have two layouts. Below 960 px it is
 the phone layout. From 960 px the same steps are laid out for a computer, with the menu
 on top, the steps beside the form and the list beside the map. The pages of the
-municipal worker are for a computer only. They have a menu on the left with Reports, Map
-and X-Road. The list has a card with a count for every status. The report page shows the
+municipal worker are for a computer only. The coordinator has a menu on the left with
+Reports, Map and X-Road, the unit has Handed to us. The list has a card with a count for every status. The report page shows the
 progress, the buttons of the allowed next steps, the words of the resident, the photos
 and the place on a map. Status, news and forwarding open in a window.
 
@@ -524,3 +546,12 @@ DANGEROUS_OBJECT, PUBLIC_ORDER and OTHER.
 6. All municipalities of Estonia are open, as the public address service finds the
    municipality for any point. Outside Estonia the place answers 404.
 7. A resident who refuses the device identifier may still report as a guest, once a day.
+8. The coordinator only checks. Solving is the work of the responsible unit, and only the
+   unit of the current handover sets In progress and Resolved.
+9. The handover goes over X-Road through the imitated security server of this
+   application. The X-Road Playground cannot be used, as we cannot register a service
+   there. The member codes and inbox addresses are invented, as no open list of the
+   units and their systems was found.
+10. A failed handover does not undo the acceptance. The coordinator sends it again.
+11. On a phone the page takes photos with the camera of the browser, because the camera
+    app of the phone may close the browser tab and lose the report.
