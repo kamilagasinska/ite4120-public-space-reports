@@ -544,6 +544,8 @@ const MB8 = 8 * 1024 * 1024;
 const Photos = ({ t, wide, next, Back, H, Go, Txt, draft, change }: DraftUi) => {
   const [note, setNote] = useState('');
   const [skip, setSkip] = useState(false);
+  const [filming, setFilming] = useState(false);
+  const [canFilm, setCanFilm] = useState(() => !!navigator.mediaDevices?.getUserMedia);
   const [urls, setUrls] = useState<string[]>([]);
   const photos = useRef(draft.photos);
   photos.current = draft.photos;
@@ -564,10 +566,13 @@ const Photos = ({ t, wide, next, Back, H, Go, Txt, draft, change }: DraftUi) => 
   return (
     <>
       {Back({ to: 'what', step: 3 })}{H({ children: n ? t(n === 1 ? '# photo added' : '# photos added', n) : t('Take a photo') })}
-      <p className="sub">{t('Up to 5 photos. Keep faces and car plates out of the picture.')}</p>
-      {n < 5 && pick(wide ? <button className={n ? 'cam sm' : 'cam'}><Icon name="cam" />{t(n ? 'Add another' : 'Choose photos')}</button> : <button className={n ? 'cam sm' : 'cam'}><Icon name="cam" />{t(n ? 'Add another' : 'Open camera')}</button>, !wide)}
+      <p className="sub">{t('A photo helps the city find the problem faster.')} {t('Up to 5 photos. Keep faces and car plates out of the picture.')}</p>
+      {n < 5 && (wide ? pick(<button className={n ? 'cam sm' : 'cam'}><Icon name="cam" />{t(n ? 'Add another' : 'Choose photos')}</button>, false)
+        : canFilm ? <button className={n ? 'cam sm' : 'cam'} onClick={() => setFilming(true)}><Icon name="cam" />{t(n ? 'Add another' : 'Open camera')}</button>
+        : pick(<button className={n ? 'cam sm' : 'cam'}><Icon name="cam" />{t(n ? 'Add another' : 'Open camera')}</button>, true))}
       {note && <div className="note" role="alert">{note}</div>}
-      {skip && !n && <div className="note" role="alert"><b>{t('Without a photo the trust level is lower.')}</b> {t('You can still send the report.')}</div>}
+      {skip && !n && <div className="note" role="alert"><b>{t('Checking may take longer.')}</b> {t('You can still send.')}</div>}
+      {filming && <Camera t={t} onShot={(f) => { add(f); setFilming(false); }} onFail={() => { setFilming(false); setCanFilm(false); setNote(t('The camera did not open. Choose a photo instead.')); }} onClose={() => setFilming(false)} />}
       {n > 0 && <ul className="ph">{urls.map((u, k) => <li key={u}><img src={u} alt={`${t('Photo')} ${k + 1}`} /><button aria-label={t('Remove photo #', k + 1)} onClick={() => change({ photos: draft.photos.filter((_, j) => j !== k) })}><Icon name="x" /></button></li>)}</ul>}
       <div className="grow" />
       <div className="foot">
@@ -576,6 +581,47 @@ const Photos = ({ t, wide, next, Back, H, Go, Txt, draft, change }: DraftUi) => 
           : Txt({ children: t(skip ? 'Continue without a photo' : 'Skip, I have no photo'), onClick: () => (skip ? next('contact') : setSkip(true)) })}
       </div>
     </>
+  );
+};
+
+/**
+ * The camera inside the page. A phone that opens its own camera app may close the browser
+ * tab to free memory, and the report being written is lost, so the page films by itself.
+ */
+const Camera = ({ t, onShot, onFail, onClose }: { t: Ui['t']; onShot: (f: File) => void; onFail: () => void; onClose: () => void }) => {
+  const video = useRef<HTMLVideoElement>(null);
+  const [ready, setReady] = useState(false);
+  const fail = useRef(onFail);
+  fail.current = onFail;
+  useEffect(() => {
+    const onFail = () => fail.current();
+    let stream: MediaStream | null = null;
+    let gone = false;
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 } }, audio: false })
+      .then((s) => {
+        if (gone) { s.getTracks().forEach((k) => k.stop()); return; }
+        stream = s;
+        if (video.current) { video.current.srcObject = s; video.current.play().then(() => setReady(true), onFail); }
+      }, onFail);
+    return () => { gone = true; stream?.getTracks().forEach((k) => k.stop()); };
+  }, []);
+  const shoot = () => {
+    const v = video.current;
+    if (!v || !v.videoWidth) return;
+    const c = document.createElement('canvas');
+    c.width = v.videoWidth; c.height = v.videoHeight;
+    c.getContext('2d')?.drawImage(v, 0, 0);
+    c.toBlob((b) => b && onShot(new File([b], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' })), 'image/jpeg', 0.85);
+  };
+  return (
+    <div className="film" role="dialog" aria-modal="true" aria-label={t('Open camera')}>
+      <video ref={video} playsInline muted />
+      <div className="film-bar">
+        <button className="txt" onClick={onClose}>{t('Cancel')}</button>
+        <button className="shot" onClick={shoot} disabled={!ready} aria-label={t('Take a photo')} />
+        <span />
+      </div>
+    </div>
   );
 };
 
