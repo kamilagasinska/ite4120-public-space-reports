@@ -1,0 +1,68 @@
+diff --git a/docs/src/SUMMARY.md b/docs/src/SUMMARY.md
+index 7b5134c..6835862 100644
+--- a/docs/src/SUMMARY.md
++++ b/docs/src/SUMMARY.md
+@@ -12,6 +12,7 @@
+ - [User story · REPORTS-US-003](user-stories/REPORTS-US-003.md)
+ - [User story · REPORTS-US-004](user-stories/REPORTS-US-004.md)
+ - [User story · REPORTS-US-005](user-stories/REPORTS-US-005.md)
++- [User story · REPORTS-US-006](user-stories/REPORTS-US-006.md)
+ - [Specification · ANIMALS.01](specifications/ANIMALS.01-animal-register.md)
+ - [Specification · REPORTS.01](specifications/REPORTS.01-public-space-reports.md)
+ - [Specification · REPORTS.02](specifications/REPORTS.02-accessibility-and-data.md)
+diff --git a/docs/src/user-stories/REPORTS-US-005.md b/docs/src/user-stories/REPORTS-US-005.md
+index 568f99e..33cffa5 100644
+--- a/docs/src/user-stories/REPORTS-US-005.md
++++ b/docs/src/user-stories/REPORTS-US-005.md
+@@ -10,7 +10,8 @@
+ 
+ The recipient is proposed from the category, the municipality and the type of the nearest road. The public road map has no owner field, so the proposal can be wrong. In this course nothing is delivered to a real authority.
+ 
+-Out of scope: automatic delivery to other systems, contacts of municipal departments.
++Out of scope: contacts of real municipal departments. Delivery to the unit is covered by
++[REPORTS-US-006](REPORTS-US-006.md).
+ 
+ ## Acceptance criteria
+ 
+diff --git a/docs/src/user-stories/REPORTS-US-006.md b/docs/src/user-stories/REPORTS-US-006.md
+new file mode 100644
+index 0000000..db56982
+--- /dev/null
++++ b/docs/src/user-stories/REPORTS-US-006.md
+@@ -0,0 +1,23 @@
++# REPORTS-US-006 · Solve the reports handed to my unit
++
++> **REPORTS-US-006** · state **Proposed** · traces to [REPORTS.01](../specifications/REPORTS.01-public-space-reports.md)
++
++**As** a worker of a municipal unit, for example the Environment Department of Tallinn
++**I want** to see the reports the coordinator handed to my unit and mark what we did
++**so that** the resident sees real progress from the people who fix the problem.
++
++## Context
++
++The coordinator checks a report and accepts it. The report is then handed to the unit as
++an X-Road message. In this course the security server and the inbox of the unit are
++imitated, and the unit signs in with a mock sign-in as its inbox address.
++
++Out of scope: a real document system of a municipality, real accounts of unit workers.
++
++## Acceptance criteria
++
++- The unit sees only the reports handed to it, new ones marked.
++- The unit can start the work, write news for the resident and add photos of the result.
++- Only the unit marks a report as resolved, the coordinator cannot.
++- The unit can return a report that is not theirs, with a reason, and then no longer sees it.
++- The resident sees the unit and the day of the handover, not the inbox address.
+diff --git a/docs/test-protocol.md b/docs/test-protocol.md
+index 9078b4f..8ea5781 100644
+--- a/docs/test-protocol.md
++++ b/docs/test-protocol.md
+@@ -40,6 +40,8 @@ of the check by hand are filled in by the person who did it. Run the automated t
+ | 32 | The sender can say that the problem remains. | ReportDialogueRulesIT |  |  |  |
+ | 33 | Points are given for confirmed and solved reports. | ReportDialogueRulesIT |  |  |  |
+ | 34 | Others can say that they see it too. | ReportDialogueRulesIT |  |  |  |
++| 35 | The coordinator finds late reports and searches. | ReportBusinessRulesIT |  |  |  |
++| 36 | The coordinator sees the trust of the sender. | ReportBusinessRulesIT |  |  |  |
+ | 37 | An accepted report is handed to the unit over X-Road. | ReportHandoverRulesIT |  |  |  |
+ | 38 | Only the unit solves. | ReportHandoverRulesIT |  |  |  |
+ | 39 | The unit returns a report that is not theirs. | ReportHandoverRulesIT |  |  |  |
