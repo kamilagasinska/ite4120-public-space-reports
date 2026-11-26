@@ -15,6 +15,8 @@ The target is WCAG 2.2 AA. What is in place and what is not
 | Screen reader | headings, labels and status messages are marked | a run with a screen reader |
 | Movement | animations are off when the device asks for less motion | |
 | Phone width | used at 375 px | a real phone |
+| Camera | the camera works inside the page, with a large shutter button and a Cancel button; when the camera does not open, the page says so and offers to choose a photo | a run with a screen reader on a real phone |
+| Pages of the unit | the same menu, list and report page as the coordinator, built from the same components | a full run by keyboard |
 | Languages | English, Estonian, Russian, Ukrainian on the phone | a check by native speakers |
 
 ## Personal data
@@ -29,6 +31,8 @@ The target is WCAG 2.2 AA. What is in place and what is not
 | Description, address | handling the report | report, public only after publication | no deletion rule yet, an open question |
 | Photos | handling the report | database, redrawn without the data of the file | 6 months after closing |
 | Map point | finding the place | report, rounded on the public map | with the report |
+| Camera picture | the photo of the problem | only the taken frame is kept, as a photo; the video of the camera is never sent or stored | as photos |
+| Letter to the unit | solving the problem | sent over X-Road to the unit: reference number, category, address, map point, description; never the contact or who sent it | with the report |
 
 The device number and the hashes are pseudonymous personal data, not anonymous data. A
 resident who does not want the device number can still report as a guest. The legal basis
