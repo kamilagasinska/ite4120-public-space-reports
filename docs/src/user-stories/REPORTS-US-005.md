@@ -10,7 +10,8 @@
 
 The recipient is proposed from the category, the municipality and the type of the nearest road. The public road map has no owner field, so the proposal can be wrong. In this course nothing is delivered to a real authority.
 
-Out of scope: automatic delivery to other systems, contacts of municipal departments.
+Out of scope: contacts of real municipal departments. Delivery to the unit is covered by
+[REPORTS-US-006](REPORTS-US-006.md).
 
 ## Acceptance criteria
 
